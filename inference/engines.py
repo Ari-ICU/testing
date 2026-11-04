@@ -25,10 +25,30 @@ from typing import Any
 import numpy as np
 import soundfile as sf
 
-from preprocessing.khmer_normalizer import chunk_khmer_text, normalize_khmer_text
+from preprocessing.khmer_normalizer import (
+    chunk_khmer_text,
+    normalize_khmer_text,
+    normalize_with_control,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 VOICES_JSON = PROJECT_ROOT / "dataset" / "voices" / "voices.json"
+
+EMOTION_STYLE_PROMPTS: dict[str, str] = {
+    "neutral": "natural, clear, steady pace",
+    "happy": "cheerful, happy, bright and energetic tone, warm smile in voice",
+    "sad": "sad, melancholic, soft low voice, slower pace, emotional sigh",
+    "angry": "angry, firm, intense, loud and sharp tone, fast pace",
+    "excited": "very excited, enthusiastic, high energy, dynamic pitch",
+    "whisper": "soft whisper, quiet, intimate and breathy voice",
+    "news": "authoritative news anchor, professional, articulate, steady broadcast pace",
+    "storytelling": "expressive narrator, dramatic pauses, engaging and warm tone",
+    "story": "expressive narrator, dramatic pauses, engaging and warm tone",
+    "comedy": "humorous, playful, smiling, chuckling and lighthearted delivery",
+    "stern": "firm, serious, authoritative, commanding voice",
+    "friendly": "warm, friendly, approachable and natural tone",
+    "casual": "conversational, relaxed, friendly and natural pace",
+}
 
 _CANCEL_EVENT = threading.Event()
 _PROGRESS_LOCK = threading.Lock()
@@ -1176,25 +1196,32 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
     ) -> SynthesisResult:
         from voxcpm.model.utils import next_and_close
 
-        # Dynamic prosody, guidance scaling & tempo based on emotional style
+        # Determine natural-language emotion/style instruction
         eff_cfg = cfg_value
         emo = str(emotion or "neutral").lower()
-        if emo == "stern" and eff_cfg < 2.2:
+        custom_style = kwargs.get("custom_style_prompt")
+        use_hifi = bool(kwargs.get("use_hifi_clone", False))
+
+        style_instruction = (
+            custom_style.strip()
+            if custom_style
+            else EMOTION_STYLE_PROMPTS.get(emo, "")
+        )
+        has_emotion = bool(style_instruction and (emo != "neutral" or custom_style))
+
+        # Dynamic prosody, guidance scaling & tempo based on emotional style
+        if emo in ("angry", "excited") and eff_cfg < 2.4:
+            eff_cfg = 2.4
+        elif emo in ("stern", "comedy") and eff_cfg < 2.2:
             eff_cfg = 2.2
-        elif emo == "angry" and eff_cfg < 2.3:
-            eff_cfg = 2.3
-        elif emo == "comedy" and eff_cfg < 2.0:
-            eff_cfg = 2.0
         elif emo == "happy" and eff_cfg < 2.1:
             eff_cfg = 2.1
-        elif emo == "sad" and eff_cfg > 1.7:
-            eff_cfg = 1.7
-        elif emo == "whisper" and eff_cfg > 1.5:
-            eff_cfg = 1.5
+        elif emo in ("sad", "whisper") and eff_cfg > 1.8:
+            eff_cfg = 1.8
 
         # In direct zero-shot mode without reference transcript, ensure guidance is strong enough (>= 2.2)
         # to firmly transfer the speaker's acoustic timbre without drifting to the base model.
-        if not ref_text and eff_cfg < 2.2:
+        if not ref_text and eff_cfg < 2.2 and not has_emotion:
             eff_cfg = 2.2
 
         # Subtle stylistic pacing adjustment if speed is at default (1.0)
@@ -1208,6 +1235,11 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
                 eff_speed = 0.92
             elif emo == "stern":
                 eff_speed = 0.96
+
+        # When emotion control is requested, VoxCPM2 requires controllable cloning mode
+        # (reference_wav_path only without prompt_text), because prompt_text forces continuation
+        # and overrides the parenthesized style instruction.
+        eff_ultimate_clone = ultimate_clone and use_hifi and not has_emotion
 
         update_generation_progress(
             active=True,
@@ -1244,17 +1276,30 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
                     pass
 
             t0 = time.perf_counter()
-            norm_text = normalize_khmer_text(text) if normalize else text.strip()
-            # Clean any bracketed emotion tags so the TTS model never recites or pronounces them aloud
+            # Clean any legacy bracketed emotion tags so the TTS model never recites them
             clean_text = re.sub(
                 r"^\[(?:កំប្លែង|ម៉ឺងម៉ាត់|រីករាយ|សោកសៅ|ខឹង|និទាន|ខ្សឹប|ព័ត៌មាន|សន្ទនា|បុរាណ|រាយការណ៍|comedy|stern|happy|sad|angry|story|whisper|news|casual|heritage|reporter)\]\s*",
                 "",
-                norm_text,
+                text.strip(),
                 flags=re.IGNORECASE,
             ).strip()
             if not clean_text:
-                clean_text = norm_text
-            chunks = chunk_khmer_text(clean_text) if normalize else [clean_text]
+                clean_text = text.strip()
+
+            if has_emotion:
+                norm_text = (
+                    normalize_with_control(clean_text, emotion_prompt=style_instruction)
+                    if normalize
+                    else f"({style_instruction}) {clean_text}"
+                )
+                chunks = (
+                    chunk_khmer_text(clean_text, emotion_prompt=style_instruction)
+                    if normalize
+                    else [f"({style_instruction}) {clean_text}"]
+                )
+            else:
+                norm_text = normalize_khmer_text(clean_text) if normalize else clean_text
+                chunks = chunk_khmer_text(clean_text) if normalize else [clean_text]
 
             voices = load_voice_profiles()
             profile = voices.get(voice, {})
@@ -1276,7 +1321,7 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
             prompt_cache = self._get_or_build_prompt_cache(
                 resolved_ref_audio=resolved_ref_audio,
                 resolved_ref_text=resolved_ref_text,
-                ultimate_clone=ultimate_clone,
+                ultimate_clone=eff_ultimate_clone,
             )
 
             for idx, chunk in enumerate(chunks):

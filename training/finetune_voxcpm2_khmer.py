@@ -14,6 +14,8 @@ import argparse
 import json
 import math
 from pathlib import Path
+import random
+import re
 import sys
 import time
 
@@ -67,9 +69,9 @@ def parse_args() -> argparse.Namespace:
         default=str(PROJECT_ROOT / "models" / "voxcpm2_khmer_lora"),
         help="Directory to save LoRA checkpoints (`lora_weights.safetensors`).",
     )
-    parser.add_argument("--lora-r", type=int, default=16, help="LoRA rank (default: 16)")
+    parser.add_argument("--lora-r", type=int, default=32, help="LoRA rank (default: 32)")
     parser.add_argument(
-        "--lora-alpha", type=int, default=32, help="LoRA alpha (default: 32)"
+        "--lora-alpha", type=int, default=64, help="LoRA alpha (default: 64)"
     )
     parser.add_argument(
         "--lora-dropout", type=float, default=0.05, help="LoRA dropout (default: 0.05)"
@@ -249,27 +251,32 @@ def main() -> None:
         sample_rate=encode_sr,
     )
 
-    EMOTION_PREFIX_MAP: dict[str, str] = {
-        "comedy": "កំប្លែង",
-        "tinfy": "កំប្លែង",
-        "stern": "ម៉ឺងម៉ាត់",
-        "pao_chin": "ម៉ឺងម៉ាត់",
-        "happy": "រីករាយ",
-        "cheerful": "រីករាយ",
-        "female_youth": "រីករាយ",
-        "sad": "សោកសៅ",
-        "angry": "ខឹង",
-        "story": "និទាន",
-        "male_narrator": "និទាន",
-        "whisper": "ខ្សឹប",
-        "news": "ព័ត៌មាន",
-        "female_news": "ព័ត៌មាន",
-        "casual": "សន្ទនា",
-        "male_podcast": "សន្ទនា",
-        "heritage": "បុរាណ",
-        "male_heritage": "បុរាណ",
-        "reporter": "រាយការណ៍",
-        "male_reporter": "រាយការណ៍",
+    STYLE_INSTRUCTION_MAP: dict[str, str] = {
+        "neutral": "natural, clear, steady pace",
+        "comedy": "humorous, playful, smiling, chuckling and lighthearted delivery",
+        "tinfy": "humorous, playful, smiling, comedy tone",
+        "stern": "firm, serious, authoritative, commanding voice",
+        "pao_chin": "firm, serious, authoritative, commanding voice",
+        "happy": "cheerful, happy, bright and energetic tone, warm smile in voice",
+        "cheerful": "cheerful, happy, bright and energetic tone",
+        "friendly": "warm, friendly, approachable and natural tone",
+        "warm": "warm, calm, pleasant tone, gentle pace",
+        "female_youth": "youthful, bright and cheerful tone",
+        "sad": "sad, melancholic, soft low voice, slower pace, emotional sigh",
+        "angry": "angry, firm, intense, loud and sharp tone, fast pace",
+        "excited": "very excited, enthusiastic, high energy, dynamic pitch",
+        "story": "expressive narrator, dramatic pauses, engaging and warm tone",
+        "storytelling": "expressive narrator, dramatic pauses, engaging and warm tone",
+        "male_narrator": "expressive narrator, dramatic pauses, deep and warm tone",
+        "whisper": "soft whisper, quiet, intimate and breathy voice",
+        "news": "authoritative news anchor, professional, articulate, steady broadcast pace",
+        "female_news": "professional news anchor, articulate, clear and steady broadcast pace",
+        "casual": "conversational, relaxed, friendly and natural pace",
+        "male_podcast": "conversational podcast host, relaxed and friendly",
+        "heritage": "historical, traditional recitation, slow and dignified",
+        "male_heritage": "historical, traditional recitation, slow and dignified",
+        "reporter": "field reporter, lively, broadcast style",
+        "male_reporter": "field reporter, lively, broadcast style",
     }
 
     def _tokenize_batch(batch: dict[str, list[Any]]) -> dict[str, list[list[int]]]:
@@ -279,12 +286,30 @@ def main() -> None:
         speakers = batch.get("speaker") or ["" for _ in texts]
 
         for raw_t, emo, spk in zip(texts, emotions, speakers):
-            norm_t = normalize_khmer_text(raw_t, transliterate_english=True)
-            if args.emotional_tuning:
-                tag = EMOTION_PREFIX_MAP.get(str(emo or "").lower()) or EMOTION_PREFIX_MAP.get(str(spk or "").lower())
-                if tag and not norm_t.startswith("["):
-                    norm_t = f"[{tag}] {norm_t}"
-            ids_list.append(model.text_tokenizer(norm_t))
+            # Check if raw_t already carries a parenthesized control tag
+            match = re.match(r"^\(([^)]+)\)\s*(.*)$", str(raw_t).strip(), flags=re.DOTALL)
+            if match:
+                existing_tag, khmer_text = match.group(1).strip(), match.group(2).strip()
+            else:
+                existing_tag, khmer_text = None, str(raw_t).strip()
+
+            norm_t = normalize_khmer_text(khmer_text, transliterate_english=True)
+            tag = (
+                existing_tag
+                or STYLE_INSTRUCTION_MAP.get(str(emo or "").lower())
+                or STYLE_INSTRUCTION_MAP.get(str(spk or "").lower())
+            )
+
+            # CFG Dropout: On ~15% of samples during training, drop the style tag
+            # to learn unconditional generation and strengthen CFG contrast at inference
+            drop_tag = random.random() < 0.15
+
+            if args.emotional_tuning and tag and not drop_tag:
+                prompt_str = f"({tag}) {norm_t}"
+            else:
+                prompt_str = norm_t
+
+            ids_list.append(model.text_tokenizer(prompt_str))
         return {"text_ids": ids_list}
 
     train_ds = train_ds.map(_tokenize_batch, batched=True)

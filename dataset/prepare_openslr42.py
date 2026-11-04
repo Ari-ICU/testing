@@ -82,18 +82,31 @@ def prepare_dataset(
 
         norm_text = normalize_khmer_text(raw_text, transliterate_english=True)
         abs_wav = str(wav_path.resolve())
+        # Tag OpenSLR-42 rows explicitly as neutral calm reading so training on it
+        # does not overwrite expressive emotional manifolds in VoxCPM2
+        conditioned_text = f"(neutral, calm reading pace) {norm_text}"
         records.append(
             {
                 "id": utt_id,
                 "audio": abs_wav,
                 "audio_filepath": abs_wav,
                 "raw_text": raw_text,
-                "text": norm_text,
+                "text": conditioned_text,
                 "duration": round(info.duration, 3),
                 "sample_rate": info.samplerate,
                 "speaker": "openslr42_male",
+                "emotion": "neutral",
             }
         )
+
+    # Mix reference audio for ~40% of records from a different utterance of the same speaker
+    all_wavs = [r["audio"] for r in records]
+    rnd = random.Random(42)
+    for idx, r in enumerate(records):
+        if rnd.random() < 0.40 and len(all_wavs) > 1:
+            other_wav = rnd.choice(all_wavs)
+            if other_wav != r["audio"]:
+                r["ref_audio"] = other_wav
 
     random.Random(42).shuffle(records)
     val_count = max(1, int(len(records) * val_ratio)) if records else 0

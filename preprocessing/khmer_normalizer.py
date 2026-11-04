@@ -436,6 +436,7 @@ def normalize_khmer_text(
     text: str,
     transliterate_english: bool = True,
     expand_lek_too: bool = True,
+    map_khmer_periods: bool = True,
 ) -> str:
     """Full Khmer text normalization pipeline for TTS."""
     if not text:
@@ -451,9 +452,48 @@ def normalize_khmer_text(
     if transliterate_english:
         text = normalize_english_terms(text)
     text = normalize_numbers(text)
-    # Ensure clean spacing around Khmer sentence punctuation
-    text = re.sub(r"\s*([។៕!?])\s*", r"\1 ", text)
+    # Convert Khmer sentence enders ។ ៕ into standard pause-inducing periods (. )
+    # while strictly preserving emotional punctuation (! ? ... ,)
+    if map_khmer_periods:
+        text = re.sub(r"\s*[។៕]\s*", r". ", text)
+    # Protect ellipses from getting separated
+    text = re.sub(r"\.{3,}", "…", text)
+    # Ensure clean spacing around sentence punctuation
+    text = re.sub(r"\s*([.!?,…])\s*", r"\1 ", text)
     return " ".join(text.split())
+
+
+def normalize_with_control(
+    raw_text: str,
+    emotion_prompt: str | None = None,
+    transliterate_english: bool = True,
+    expand_lek_too: bool = True,
+    map_khmer_periods: bool = True,
+) -> str:
+    """Isolate parenthesized style/emotion control tags before normalizing Khmer text.
+
+    VoxCPM2 steers emotion, prosody, and tempo via parenthesized style prefixes
+    (e.g. `(cheerful, energetic tone)សួស្តី`). This helper preserves the English
+    or Chinese style tags from being corrupted by Unicode or Khmer token cleaners.
+    """
+    if not raw_text:
+        return ""
+    match = re.match(r"^\(([^)]+)\)\s*(.*)$", raw_text.strip(), flags=re.DOTALL)
+    if match:
+        control_tag, khmer_body = match.group(1).strip(), match.group(2).strip()
+    else:
+        control_tag, khmer_body = (emotion_prompt.strip() if emotion_prompt else None), raw_text.strip()
+
+    normalized_body = normalize_khmer_text(
+        khmer_body,
+        transliterate_english=transliterate_english,
+        expand_lek_too=expand_lek_too,
+        map_khmer_periods=map_khmer_periods,
+    )
+
+    if control_tag:
+        return f"({control_tag}) {normalized_body}".strip()
+    return normalized_body
 
 
 def _safe_cut(text: str, limit: int) -> int:
@@ -487,41 +527,66 @@ def chunk_khmer_text(
     text: str,
     max_chars: int = 115,
     transliterate_english: bool = True,
+    emotion_prompt: str | None = None,
 ) -> list[str]:
-    """Normalize and split Khmer text into breath-sized prosody chunks for smooth TTS inference."""
-    text = normalize_khmer_text(text, transliterate_english=transliterate_english)
-    sentences, cur = [], ""
-    for ch in text:
-        cur += ch
-        if ch in _SENT_END:
-            sentences.append(cur.strip())
-            cur = ""
-    if cur.strip():
-        sentences.append(cur.strip())
+    """Normalize and split Khmer text into breath-sized prosody chunks for smooth TTS inference.
+
+    If parenthesized emotion control instructions are present, every chunk inherits
+    the parenthesized style prefix so VoxCPM2 maintains emotional conditioning
+    across all chunks.
+    """
+    if not text:
+        return [""]
+
+    # Extract control tag before splitting into sentences
+    match = re.match(r"^\(([^)]+)\)\s*(.*)$", text.strip(), flags=re.DOTALL)
+    if match:
+        control_tag = match.group(1).strip()
+        body_to_chunk = match.group(2).strip()
+    elif emotion_prompt:
+        control_tag = emotion_prompt.strip()
+        body_to_chunk = text.strip()
+    else:
+        control_tag = None
+        body_to_chunk = text.strip()
+
+    normalized_text = normalize_khmer_text(
+        body_to_chunk, transliterate_english=transliterate_english, map_khmer_periods=True
+    )
+    raw_sentences = [
+        s.strip()
+        for s in re.split(r"(?<=[.!?,…])\s+", normalized_text)
+        if s.strip()
+    ]
+    sentences = raw_sentences if raw_sentences else [normalized_text]
 
     sentence_max = max(80, max_chars)
-    chunks, buf = [], ""
+    raw_chunks, buf = [], ""
     for s in sentences:
         if len(s) > sentence_max:
             if buf:
-                chunks.append(buf)
+                raw_chunks.append(buf)
                 buf = ""
             while len(s) > sentence_max:
                 cut = _safe_cut(s, sentence_max)
                 if cut <= 0 or cut >= len(s):
                     break
-                chunks.append(s[:cut].strip())
+                raw_chunks.append(s[:cut].strip())
                 s = s[cut:].strip()
             if s:
-                chunks.append(s)
+                raw_chunks.append(s)
             continue
         # Only merge very short fragments (< 35 chars); keep full sentences separate
-        # so the AR model doesn't pause awkwardly or drift across multiple '។' markers.
+        # so the AR model doesn't pause awkwardly or drift across multiple sentence markers.
         if buf and (len(buf) >= 35 or len(buf) + len(s) + 1 > max_chars):
-            chunks.append(buf)
+            raw_chunks.append(buf)
             buf = s
         else:
             buf = f"{buf} {s}".strip()
     if buf:
-        chunks.append(buf)
-    return [c for c in chunks if c] or [""]
+        raw_chunks.append(buf)
+
+    cleaned_chunks = [c for c in raw_chunks if c] or [""]
+    if control_tag:
+        return [f"({control_tag}) {c}".strip() for c in cleaned_chunks]
+    return cleaned_chunks

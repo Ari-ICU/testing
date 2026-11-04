@@ -92,6 +92,8 @@ async def api_synthesize(req: SynthesizeRequest) -> SynthesisResponse:
                 speed=req.speed,
                 use_lora=req.use_lora,
                 emotion=getattr(req, "emotion", "neutral"),
+                custom_style_prompt=getattr(req, "custom_style_prompt", None),
+                use_hifi_clone=getattr(req, "use_hifi_clone", False),
             )
 
     try:
@@ -143,6 +145,8 @@ async def api_clone_voice(
         description="Ultimate prosody clone mode. Defaults to on for preset voices (uses their transcript).",
     ),
     emotion: str = Form("neutral", description="Emotional tone / speaking style"),
+    custom_style_prompt: str | None = Form(None, description="Custom style instruction override"),
+    use_hifi_clone: bool = Form(False, description="Set True only when strict prosody continuation is preferred over emotion steering"),
     ref_audio: UploadFile | None = File(None, description="Custom reference audio clip"),
 ) -> SynthesisResponse:
     """Zero-shot and Ultimate Voice Cloning endpoint."""
@@ -193,6 +197,8 @@ async def api_clone_voice(
                     use_lora=use_lora,
                     ultimate_clone=use_ultimate,
                     emotion=emotion,
+                    custom_style_prompt=custom_style_prompt,
+                    use_hifi_clone=use_hifi_clone,
                 )
 
         res = await asyncio.to_thread(_run_sync_clone)
