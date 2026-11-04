@@ -1,0 +1,26 @@
+# Core audio & deep learning (Apple Silicon M2 Pro MPS)
+torch>=2.2.0
+torchaudio>=2.2.0
+numpy>=1.26.0
+soundfile>=0.12.1
+scipy>=1.11.0
+
+# Model 1: Meta MMS Khmer (`facebook/mms-tts-khm`)
+transformers>=4.40.0
+accelerate>=0.30.0
+
+# Model 2: Khmer F5-TTS (`sarunvisoth/khmer-tts-demo` API & local F5-TTS checkpoints)
+gradio_client>=1.2.0
+huggingface_hub>=0.23.0
+omegaconf>=2.3.0
+# Optional for local F5-TTS checkpoint inference/fine-tuning:
+# f5-tts>=1.0.0
+
+# Model 3 & 4: VoxCPM 2 Khmer (`ravuthz/VoxCPM2-khmer` & `openbmb/VoxCPM2`)
+voxcpm>=2.0.0
+
+# Stage 4: FastAPI Server & Web Studio
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+

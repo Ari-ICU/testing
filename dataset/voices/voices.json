@@ -1,0 +1,92 @@
+{
+  "female": {
+    "id": "female",
+    "speaker_id": "f-adt1-0002",
+    "label": "👩 សុភា — Sophea (Cambodian Female Speaker #1 · f-adt1-0002)",
+    "gender": "female",
+    "audio_path": "dataset/voices/ref_female.wav",
+    "ref_text": "រំងាស់ខ្ទិះរហូតឱ្យចេកប្ដូរពណ៌ និងខាប់ខ្ទិះ រហូតឱ្យបង្អែមមានទម្រង់ស្រស់ស្អាត និងទាក់ទាញភ្នែក។",
+    "description": "Real human Cambodian female speaker (f-adt1-0002) from Khmer speech corpus."
+  },
+  "male": {
+    "id": "male",
+    "speaker_id": "m-adt1-0002",
+    "label": "👨 តារា — Dara (Cambodian Male Speaker #1 · m-adt1-0002)",
+    "gender": "male",
+    "audio_path": "dataset/voices/ref_male.wav",
+    "ref_text": "ហើយការទទួលទានទឹកប្រទាលកន្ទុយក្រពើអាចជួយបំប៉នស្បែកពីខាងក្នុងសារពាង្គកាយរបស់មនុស្ស។",
+    "description": "Real human Cambodian male speaker (m-adt1-0002) from Khmer speech corpus."
+  },
+  "female_news": {
+    "id": "female_news",
+    "speaker_id": "f-adt2-0002",
+    "label": "👩‍💼 បុប្ផា — Bopha (Cambodian Female Speaker #2 · f-adt2-0002)",
+    "gender": "female",
+    "audio_path": "dataset/voices/ref_female_news.wav",
+    "ref_text": "នៅប្រទេសកម្ពុជាមានភេសជ្ជៈ ដែលធ្វើឡើងពីធម្មជាតិ ខ្លះធ្វើពីបន្លែ ខ្លះធ្វើពីផ្លែឈើ ទៅតាមចំណូលចិត្តមនុស្សម្នាក់ក់។",
+    "description": "Real human Cambodian female speaker (f-adt2-0002) from Khmer speech corpus."
+  },
+  "male_narrator": {
+    "id": "male_narrator",
+    "speaker_id": "m-adt1-0001",
+    "label": "👨‍🏫 វណ្ណៈ — Vannak (Cambodian Male Speaker #2 · m-adt1-0001)",
+    "gender": "male",
+    "audio_path": "dataset/voices/ref_male_narrator.wav",
+    "ref_text": "មុខម្ហូបតាមដងផ្លូវ គឺជាមុខម្ហូបមួយមានភាពសម្បូរបែប និងមានភាពងាយស្រួល ដែលគេពេញនិយមក្នុងការបរិភោគ ថែមទាំងមានតម្លៃសមរម្យ។",
+    "description": "Real human Cambodian male speaker (m-adt1-0001) from Khmer speech corpus."
+  },
+  "female_youth": {
+    "id": "female_youth",
+    "speaker_id": "f-adt1-0001",
+    "label": "👧 ចន្ធូ — Chanthou (Cambodian Female Speaker #3 · f-adt1-0001)",
+    "gender": "female",
+    "audio_path": "dataset/voices/ref_female_youth.wav",
+    "ref_text": "មុខម្ហូបតាមដងផ្លូវ គឺជាមុខម្ហូបមួយមានភាពសម្បូរបែប និងមានភាពងាយស្រួល ដែលគេពេញនិយមក្នុងការបរិភោគ ថែមទាំងមានតម្លៃសមរម្យ។",
+    "description": "Real human Cambodian female speaker (f-adt1-0001) from Khmer speech corpus."
+  },
+  "male_podcast": {
+    "id": "male_podcast",
+    "speaker_id": "m-adt2-0002",
+    "label": "🎙️ រិទ្ធី — Rithy (Cambodian Male Speaker #3 · m-adt2-0002)",
+    "gender": "male",
+    "audio_path": "dataset/voices/ref_male_podcast.wav",
+    "ref_text": "បាយឆាសាច់ក្រក គឺជាមុខម្ហូបដែលងាយស្រួលធ្វើ ហើយមានរសជាតិឈ្ងុយឆ្ងាញ់ ដោយសារក្លិនសាច់ក្រក។",
+    "description": "Real human Cambodian male speaker (m-adt2-0002) from Khmer speech corpus."
+  },
+  "male_heritage": {
+    "id": "male_heritage",
+    "speaker_id": "m-adt2-0001",
+    "label": "🏛️ សុខា — Sokha (Cambodian Male Speaker #4 · m-adt2-0001)",
+    "gender": "male",
+    "audio_path": "dataset/voices/ref_male_heritage.wav",
+    "ref_text": "មុខម្ហូបតាមដងផ្លូវ គឺជាមុខម្ហូបមួយមានភាពសម្បូរបែប និងមានភាពងាយស្រួល ដែលគេពេញនិយមក្នុងការបរិភោគ ថែមទាំងមានតម្លៃសមរម្យ។",
+    "description": "Real human Cambodian male speaker (m-adt2-0001) from Khmer speech corpus."
+  },
+  "male_reporter": {
+    "id": "male_reporter",
+    "speaker_id": "grkpp_news",
+    "label": "📰 ចាន់ — Chan (Phnom Penh News Broadcaster · GRKPP)",
+    "gender": "male",
+    "audio_path": "dataset/voices/ref_male_reporter.wav",
+    "ref_text": "មុខសញ្ញាជួញដូរ និងប្រើប្រាស់គ្រឿងញៀនដុះស្លែក្បែរផ្សារនាគមាស ប្រាំបីនាក់ ត្រូវបានអាវុធហត្ថរាជធានីភ្នំពេញ ឆ្មក់បង្រ្កាប និងឃាត់ខ្លួន បញ្ជូនទៅតុលាការ!",
+    "description": "Real human Cambodian male speaker (grkpp_news) from Khmer speech corpus."
+  },
+  "tinfy": {
+    "id": "tinfy",
+    "speaker_id": "tinfy_khmer_dub",
+    "label": "🎭 ទិនហ្វី — Tinfy (Classic Khmer Comedy Movie Dub)",
+    "gender": "male",
+    "audio_path": "dataset/voices/ref_tinfy.wav",
+    "ref_text": "កុំៗៗ អា៎ចង្រៃយក ចេះអាណិតស្រីៗទៅ វាអត់ចេះអាណិតអញទាល់តែសោះវើយ ឥឡូវខ្ញុំអាណិតទាំងអស់គ្នា។",
+    "description": "Iconic Tinfy (Stephen Chow) classic Cambodian comedy movie dubbing voice."
+  },
+  "pao_chin": {
+    "id": "pao_chin",
+    "speaker_id": "pao_chin_khmer_dub",
+    "label": "⚖️ ប៉ាវចិន — Pao Chin (Judge Bao Classic Khmer Dub)",
+    "gender": "male",
+    "audio_path": "dataset/voices/ref_pao_chin.wav",
+    "ref_text": "ល្អ! យើងសួរឯងមួយ អង្គុយខ្ពស់ជាងឈរ អាណាមិនរកឆ្កែ កៅសិបប្រាំបួនភាគរយឆ្លើយខុសទាំងអស់។",
+    "description": "Iconic Judge Pao Chin (ប៉ាវចិន / តុលាការមុខដែក) deep booming Cambodian movie dubbing voice."
+  }
+}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8">
+  <title>KhmerVoice AI — Stage 1 Khmer TTS Benchmark Report</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+    }
+    body {
+      margin: 0;
+      padding: 32px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', 'Kantumruy Pro', sans-serif;
+    }
+    h1 { margin: 0 0 8px 0; font-size: 26px; }
+    p.lead { color: var(--muted); margin: 0 0 24px 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    th, td {
+      padding: 16px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+    th { background: #0b1120; font-weight: 600; font-size: 14px; }
+    th .sub { color: var(--muted); font-weight: 400; font-size: 12px; }
+    .prompt-cell { width: 340px; }
+    .cat { color: var(--accent); font-weight: 600; font-size: 12px; text-transform: uppercase; margin-bottom: 6px; }
+    .khm-raw { font-family: 'Kantumruy Pro', sans-serif; font-size: 17px; line-height: 1.6; margin-bottom: 8px; }
+    .khm-norm { font-family: 'Kantumruy Pro', sans-serif; font-size: 13px; color: #cbd5e1; background: #0f172a; padding: 8px; border-radius: 6px; margin-bottom: 6px; }
+    .focus { font-size: 12px; color: var(--muted); }
+    audio { width: 250px; height: 38px; margin-bottom: 8px; }
+    .metrics { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--muted); }
+    .metrics span { background: #0f172a; padding: 3px 7px; border-radius: 4px; }
+    .error { color: #f87171; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>🇰🇭 KhmerVoice AI — Stage 1 Model Benchmark Comparison</h1>
+  <p class="lead">Apple M2 Pro (16GB) Evaluation Suite · Listen side-by-side to compare Khmer pronunciation, number/date reading, pauses, and voice cloning.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Khmer Evaluation Sentence & Normalization</th>
+        <th>Meta MMS Khmer (VITS)<br><span class='sub'>facebook/mms-tts-khm</span></th><th>Khmer F5-TTS (1,000h Khmer DiT)<br><span class='sub'>sarunvisoth/khmer-tts-demo</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class='prompt-cell'><div class='cat'>Natural Greeting &amp; Intonation</div><div class='khm-raw'>ជម្រាបសួរ! សូមស្វាគមន៍មកកាន់ប្រព័ន្ធបំប្លែងអត្ថបទទៅជាសំឡេងភាសាខ្មែរ។</div><div class='khm-norm'><b>Normalized:</b> ជម្រាបសួរ! សូមស្វាគមន៍មកកាន់ប្រព័ន្ធបំប្លែងអត្ថបទទៅជាសំឡេងភាសាខ្មែរ។</div><div class='focus'>🎯 Everyday politeness, natural sentence-final cadence (។)</div></td><td><audio controls preload='metadata' src='mms/01_greeting_female.wav'></audio><div class='metrics'><span>⏱️ Latency: <b>0.83s</b></span><span>⚡ RTF: <b>0.13x</b></span><span>🔊 6.3s @ 16kHz</span><span>🎙️ Voice: mms-default (male)</span></div></td><td><audio controls preload='metadata' src='f5_khmer/01_greeting_female.wav'></audio><div class='metrics'><span>⏱️ Latency: <b>9.58s</b></span><span>⚡ RTF: <b>1.74x</b></span><span>🔊 5.5s @ 24kHz</span><span>🎙️ Voice: female</span></div></td></tr><tr><td class='prompt-cell'><div class='cat'>Khmer Numerals &amp; Currency (៛ / $)</div><div class='khm-raw'>កាហ្វេមួយកែវតម្លៃ ៥០០០៛ ឬប្រហែល $1.25 ក្នុងឆ្នាំ ២០២៦។</div><div class='khm-norm'><b>Normalized:</b> កាហ្វេមួយកែវតម្លៃ ប្រាំពាន់រៀល ឬប្រហែល មួយក្បៀសពីរប្រាំដុល្លារ ក្នុងឆ្នាំ ពីរពាន់ម្ភៃប្រាំមួយ។</div><div class='focus'>🎯 Verbalization of ៥០០០៛, decimal $1.25, and year ២០២៦</div></td><td><audio controls preload='metadata' src='mms/02_numbers_currency_female.wav'></audio><div class='metrics'><span>⏱️ Latency: <b>1.07s</b></span><span>⚡ RTF: <b>0.11x</b></span><span>🔊 9.6s @ 16kHz</span><span>🎙️ Voice: mms-default (male)</span></div></td><td><audio controls preload='metadata' src='f5_khmer/02_numbers_currency_female.wav'></audio><div class='metrics'><span>⏱️ Latency: <b>4.72s</b></span><span>⚡ RTF: <b>0.63x</b></span><span>🔊 7.5s @ 24kHz</span><span>🎙️ Voice: female</span></div></td></tr><tr><td class='prompt-cell'><div class='cat'>Khmer Dates &amp; Time</div><div class='khm-raw'>កិច្ចប្រជុំនេះនឹងប្រព្រឹត្តទៅនៅថ្ងៃទី ២/១១/២០២៦ វេលាម៉ោង ៩ ព្រឹក។</div><div class='khm-norm'><b>Normalized:</b> កិច្ចប្រជុំនេះនឹងប្រព្រឹត្តទៅនៅថ្ងៃទីពីរ ខែវិច្ឆិកា ឆ្នាំពីរពាន់ម្ភៃប្រាំមួយ វេលាម៉ោង ប្រាំបួន ព្រឹក។</div><div class='focus'>🎯 Date expansion (២/១១/២០២៦ -&gt; ថ្ងៃទីពីរ ខែវិច្ឆិកា ឆ្នាំពីរពាន់ម្ភៃប្រាំមួយ)</div></td><td><audio controls preload='metadata' src='mms/03_dates_female.wav'></audio><div class='metrics'><span>⏱️ Latency: <b>0.84s</b></span><span>⚡ RTF: <b>0.11x</b></span><span>🔊 7.5s @ 16kHz</span><span>🎙️ Voice: mms-default (male)</span></div></td><td><audio controls preload='metadata' src='f5_khmer/03_dates_female.wav'></audio><div class='metrics'><span>⏱️ Latency: <b>4.02s</b></span><span>⚡ RTF: <b>0.50x</b></span><span>🔊 8.1s @ 24kHz</span><span>🎙️ Voice: female</span></div></td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

@@ -1,0 +1,102 @@
+# ==============================================================================
+# KhmerVoice AI (.gitignore)
+# ==============================================================================
+
+# OS & Editor Metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Python Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Next.js & Frontend Node Dependencies
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel/
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnpm-debug.log*
+node_modules/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+frontend/.env.local
+frontend/.env.*.local
+*.pem
+*.key
+
+# Generated Inference & Benchmark Outputs (Audio & Reports)
+benchmarks/outputs/api_generated/
+benchmarks/outputs/f5_khmer/
+benchmarks/outputs/mms/
+benchmarks/outputs/live_partial.wav
+*.wav
+*.mp3
+*.m4a
+*.ogg
+*.flac
+# Preserve essential built-in studio reference voice clips
+!dataset/voices/*.wav
+
+# Processed & Raw Audio Datasets
+dataset/raw/*
+dataset/processed/custom_16k/*
+dataset/processed/demo_16k/*
+dataset/processed/real_khmer_16k/*
+!dataset/processed/.gitkeep
+!dataset/raw/.gitkeep
+
+# Model Checkpoints, Large LoRA Weights & Training Logs
+models/pretrained/*
+models/finetuned/*
+models/voxcpm2_khmer_lora/step_*/
+models/voxcpm2_khmer_lora/*.safetensors
+models/voxcpm2_khmer_lora/*.log
+*.safetensors
+*.ckpt
+*.bin
+*.pt
+*.pth
+*.onnx
+
+# General Logs & Temporary Caches
+*.log
+*.tmp
+*.temp
+khmervoice_ref_cache/
+

@@ -1,0 +1,100 @@
+{
+  "generated_at": "2026-11-02T14:41:32+0700",
+  "voice": "female",
+  "models_tested": [
+    "mms",
+    "f5_khmer"
+  ],
+  "results": [
+    {
+      "prompt_id": "01_greeting",
+      "category": "Natural Greeting & Intonation",
+      "model_id": "mms",
+      "model_name": "Meta MMS Khmer (VITS)",
+      "raw_text": "ជម្រាបសួរ! សូមស្វាគមន៍មកកាន់ប្រព័ន្ធបំប្លែងអត្ថបទទៅជាសំឡេងភាសាខ្មែរ។",
+      "normalized_text": "ជម្រាបសួរ! សូមស្វាគមន៍មកកាន់ប្រព័ន្ធបំប្លែងអត្ថបទទៅជាសំឡេងភាសាខ្មែរ។",
+      "voice_id": "mms-default (male)",
+      "sample_rate": 16000,
+      "duration_sec": 6.336,
+      "latency_sec": 0.831,
+      "rtf": 0.131,
+      "audio_path": "/Users/thoeurnratha/Desktop/voxcpm/benchmarks/outputs/mms/01_greeting_female.wav",
+      "rel_audio_path": "mms/01_greeting_female.wav"
+    },
+    {
+      "prompt_id": "02_numbers_currency",
+      "category": "Khmer Numerals & Currency (៛ / $)",
+      "model_id": "mms",
+      "model_name": "Meta MMS Khmer (VITS)",
+      "raw_text": "កាហ្វេមួយកែវតម្លៃ ៥០០០៛ ឬប្រហែល $1.25 ក្នុងឆ្នាំ ២០២៦។",
+      "normalized_text": "កាហ្វេមួយកែវតម្លៃ ប្រាំពាន់រៀល ឬប្រហែល មួយក្បៀសពីរប្រាំដុល្លារ ក្នុងឆ្នាំ ពីរពាន់ម្ភៃប្រាំមួយ។",
+      "voice_id": "mms-default (male)",
+      "sample_rate": 16000,
+      "duration_sec": 9.616,
+      "latency_sec": 1.072,
+      "rtf": 0.111,
+      "audio_path": "/Users/thoeurnratha/Desktop/voxcpm/benchmarks/outputs/mms/02_numbers_currency_female.wav",
+      "rel_audio_path": "mms/02_numbers_currency_female.wav"
+    },
+    {
+      "prompt_id": "03_dates",
+      "category": "Khmer Dates & Time",
+      "model_id": "mms",
+      "model_name": "Meta MMS Khmer (VITS)",
+      "raw_text": "កិច្ចប្រជុំនេះនឹងប្រព្រឹត្តទៅនៅថ្ងៃទី ២/១១/២០២៦ វេលាម៉ោង ៩ ព្រឹក។",
+      "normalized_text": "កិច្ចប្រជុំនេះនឹងប្រព្រឹត្តទៅនៅថ្ងៃទីពីរ ខែវិច្ឆិកា ឆ្នាំពីរពាន់ម្ភៃប្រាំមួយ វេលាម៉ោង ប្រាំបួន ព្រឹក។",
+      "voice_id": "mms-default (male)",
+      "sample_rate": 16000,
+      "duration_sec": 7.488,
+      "latency_sec": 0.841,
+      "rtf": 0.112,
+      "audio_path": "/Users/thoeurnratha/Desktop/voxcpm/benchmarks/outputs/mms/03_dates_female.wav",
+      "rel_audio_path": "mms/03_dates_female.wav"
+    },
+    {
+      "prompt_id": "01_greeting",
+      "category": "Natural Greeting & Intonation",
+      "model_id": "f5_khmer",
+      "model_name": "Khmer F5-TTS (1,000h Khmer DiT)",
+      "raw_text": "ជម្រាបសួរ! សូមស្វាគមន៍មកកាន់ប្រព័ន្ធបំប្លែងអត្ថបទទៅជាសំឡេងភាសាខ្មែរ។",
+      "normalized_text": "ជម្រាបសួរ! សូមស្វាគមន៍មកកាន់ប្រព័ន្ធបំប្លែងអត្ថបទទៅជាសំឡេងភាសាខ្មែរ។",
+      "voice_id": "female",
+      "sample_rate": 24000,
+      "duration_sec": 5.493,
+      "latency_sec": 9.576,
+      "rtf": 1.743,
+      "audio_path": "/Users/thoeurnratha/Desktop/voxcpm/benchmarks/outputs/f5_khmer/01_greeting_female.wav",
+      "rel_audio_path": "f5_khmer/01_greeting_female.wav"
+    },
+    {
+      "prompt_id": "02_numbers_currency",
+      "category": "Khmer Numerals & Currency (៛ / $)",
+      "model_id": "f5_khmer",
+      "model_name": "Khmer F5-TTS (1,000h Khmer DiT)",
+      "raw_text": "កាហ្វេមួយកែវតម្លៃ ៥០០០៛ ឬប្រហែល $1.25 ក្នុងឆ្នាំ ២០២៦។",
+      "normalized_text": "កាហ្វេមួយកែវតម្លៃ ប្រាំពាន់រៀល ឬប្រហែល មួយក្បៀសពីរប្រាំដុល្លារ ក្នុងឆ្នាំ ពីរពាន់ម្ភៃប្រាំមួយ។",
+      "voice_id": "female",
+      "sample_rate": 24000,
+      "duration_sec": 7.488,
+      "latency_sec": 4.72,
+      "rtf": 0.63,
+      "audio_path": "/Users/thoeurnratha/Desktop/voxcpm/benchmarks/outputs/f5_khmer/02_numbers_currency_female.wav",
+      "rel_audio_path": "f5_khmer/02_numbers_currency_female.wav"
+    },
+    {
+      "prompt_id": "03_dates",
+      "category": "Khmer Dates & Time",
+      "model_id": "f5_khmer",
+      "model_name": "Khmer F5-TTS (1,000h Khmer DiT)",
+      "raw_text": "កិច្ចប្រជុំនេះនឹងប្រព្រឹត្តទៅនៅថ្ងៃទី ២/១១/២០២៦ វេលាម៉ោង ៩ ព្រឹក។",
+      "normalized_text": "កិច្ចប្រជុំនេះនឹងប្រព្រឹត្តទៅនៅថ្ងៃទីពីរ ខែវិច្ឆិកា ឆ្នាំពីរពាន់ម្ភៃប្រាំមួយ វេលាម៉ោង ប្រាំបួន ព្រឹក។",
+      "voice_id": "female",
+      "sample_rate": 24000,
+      "duration_sec": 8.064,
+      "latency_sec": 4.02,
+      "rtf": 0.498,
+      "audio_path": "/Users/thoeurnratha/Desktop/voxcpm/benchmarks/outputs/f5_khmer/03_dates_female.wav",
+      "rel_audio_path": "f5_khmer/03_dates_female.wav"
+    }
+  ]
+}
