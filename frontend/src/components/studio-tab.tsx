@@ -180,56 +180,56 @@ const EMOTION_OPTIONS = [
   },
   {
     value: "happy",
-    label: "រីករាយ — Cheerful & Bright",
-    sublabel: "Cheerful, bright energetic tone, warm smile in voice",
+    label: "រីករាយ — Laughing & Joyful",
+    sublabel: "Laughing tone, joyful smile, laughing out loud with delight",
     icon: "😊",
   },
   {
     value: "sad",
-    label: "សោកសៅ — Melancholic & Sad",
-    sublabel: "Soft low voice, slower pace, emotional sigh",
+    label: "សោកសៅ — Crying & Deep Sorrow",
+    sublabel: "Crying voice, weeping, sobbing tone, heavy heart, trembling sigh",
     icon: "😢",
   },
   {
     value: "angry",
-    label: "ខឹង — Angry & Command",
-    sublabel: "Firm, intense, sharp attack, faster tempo",
+    label: "ខឹង — Furious Shouting",
+    sublabel: "Furious shouting, aggressive sharp tone, clenching teeth, loud attack",
     icon: "😠",
   },
   {
     value: "comedy",
-    label: "កំប្លែង — Comedy & Playful",
-    sublabel: "Humorous, playful smiling delivery, chuckle tone",
+    label: "កំប្លែង — Comedy & Chuckle",
+    sublabel: "Giggling, hilarious chuckle, playful laughing delivery, comic banter",
     icon: "😂",
   },
   {
     value: "stern",
     label: "ម៉ឺងម៉ាត់ — Stern & Authoritative",
-    sublabel: "Authoritative, dignified, firm commanding tone",
+    sublabel: "Strict commanding authority, deep resonant courtroom tone",
     icon: "⚖️",
   },
   {
     value: "whisper",
-    label: "ខ្សឹប — Whisper & Gentle",
-    sublabel: "Soft whisper, quiet, intimate breathy delivery",
+    label: "ខ្សឹប — Intimate Whisper",
+    sublabel: "Secret whisper, close to ear ASMR, breathy intimate quiet murmur",
     icon: "🤫",
   },
   {
     value: "news",
-    label: "ព័ត៌មាន — News Broadcast",
-    sublabel: "Professional news anchor, articulate broadcast cadence",
+    label: "ព័ត៌មាន — News Broadcaster",
+    sublabel: "Authoritative anchor, professional cadence, articulate broadcast",
     icon: "🎙️",
   },
   {
     value: "storytelling",
-    label: "និទាន — Expressive Storyteller",
-    sublabel: "Dramatic pauses, engaging warm audiobook cadence",
+    label: "និទាន — Dramatic Storyteller",
+    sublabel: "Dramatic captivating narrator, theatrical suspenseful pauses",
     icon: "📖",
   },
   {
     value: "excited",
-    label: "រំភើប — Enthusiastic & Excited",
-    sublabel: "High energy, dynamic pitch, enthusiastic cadence",
+    label: "រំភើប — Screaming & Excited",
+    sublabel: "Screaming with joy, ecstatic, breathless hype, jumping high pitch",
     icon: "🤩",
   },
 ];
@@ -254,7 +254,7 @@ export function StudioTab() {
   const [cfgValue, setCfgValue] = React.useState(2.0);
   const [steps, setSteps] = React.useState(16);
   const [speed, setSpeed] = React.useState(1.0);
-  const [useLora, setUseLora] = React.useState(true);
+  const [useLora, setUseLora] = React.useState(false);
   const [emotion, setEmotion] = React.useState("neutral");
   const [customStylePrompt, setCustomStylePrompt] = React.useState("");
   const [customRefText, setCustomRefText] = React.useState("");

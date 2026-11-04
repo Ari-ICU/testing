@@ -7,18 +7,18 @@ from pydantic import BaseModel, Field
 
 EMOTION_PRESETS: dict[str, str] = {
     "neutral": "natural, clear, steady pace",
-    "happy": "cheerful, happy, bright and energetic tone, warm smile in voice",
-    "sad": "sad, melancholic, soft low voice, slower pace, emotional sigh",
-    "angry": "angry, firm, intense, loud and sharp tone, fast pace",
-    "excited": "very excited, enthusiastic, high energy, dynamic pitch",
-    "whisper": "soft whisper, quiet, intimate and breathy voice",
-    "news": "authoritative news anchor, professional, articulate, steady broadcast pace",
-    "storytelling": "expressive narrator, dramatic pauses, engaging and warm tone",
-    "story": "expressive narrator, dramatic pauses, engaging and warm tone",
-    "comedy": "humorous, playful, smiling, chuckling and lighthearted delivery",
-    "stern": "firm, serious, authoritative, commanding voice",
-    "friendly": "warm, friendly, approachable and natural tone",
-    "casual": "conversational, relaxed, friendly and natural pace",
+    "happy": "laughing tone, joyful smile, bright energetic, laughing out loud with delight",
+    "sad": "crying voice, weeping, sobbing tone, heavy heart, deep sorrow, trembling sigh",
+    "angry": "furious shouting, enraged, aggressive sharp tone, clenching teeth, loud attack",
+    "excited": "screaming with joy, ecstatic, breathless hype, jumping enthusiastic high pitch",
+    "whisper": "secret whisper, close to ear ASMR, breathy intimate, very quiet murmur",
+    "news": "authoritative news anchor, professional broadcast, articulate, steady broadcast cadence",
+    "storytelling": "dramatic captivating narrator, dynamic pause, suspenseful storytelling, theatrical delivery",
+    "story": "dramatic captivating narrator, dynamic pause, suspenseful storytelling, theatrical delivery",
+    "comedy": "giggling, hilarious chuckle, playful laughing delivery, comedy stand-up tone",
+    "stern": "strict commanding authority, deep resonant courtroom gavel tone, intimidating",
+    "friendly": "warm, friendly, approachable, smiling and welcoming tone",
+    "casual": "conversational, relaxed, friendly chat with a best friend",
 }
 
 

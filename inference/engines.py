@@ -36,18 +36,18 @@ VOICES_JSON = PROJECT_ROOT / "dataset" / "voices" / "voices.json"
 
 EMOTION_STYLE_PROMPTS: dict[str, str] = {
     "neutral": "natural, clear, steady pace",
-    "happy": "cheerful, happy, bright and energetic tone, warm smile in voice",
-    "sad": "sad, melancholic, soft low voice, slower pace, emotional sigh",
-    "angry": "angry, firm, intense, loud and sharp tone, fast pace",
-    "excited": "very excited, enthusiastic, high energy, dynamic pitch",
-    "whisper": "soft whisper, quiet, intimate and breathy voice",
-    "news": "authoritative news anchor, professional, articulate, steady broadcast pace",
-    "storytelling": "expressive narrator, dramatic pauses, engaging and warm tone",
-    "story": "expressive narrator, dramatic pauses, engaging and warm tone",
-    "comedy": "humorous, playful, smiling, chuckling and lighthearted delivery",
-    "stern": "firm, serious, authoritative, commanding voice",
-    "friendly": "warm, friendly, approachable and natural tone",
-    "casual": "conversational, relaxed, friendly and natural pace",
+    "happy": "laughing tone, joyful smile, bright energetic, laughing out loud with delight",
+    "sad": "crying voice, weeping, sobbing tone, heavy heart, deep sorrow, trembling sigh",
+    "angry": "furious shouting, enraged, aggressive sharp tone, clenching teeth, loud attack",
+    "excited": "screaming with joy, ecstatic, breathless hype, jumping enthusiastic high pitch",
+    "whisper": "secret whisper, close to ear ASMR, breathy intimate, very quiet murmur",
+    "news": "authoritative news anchor, professional broadcast, articulate, steady broadcast cadence",
+    "storytelling": "dramatic captivating narrator, dynamic pause, suspenseful storytelling, theatrical delivery",
+    "story": "dramatic captivating narrator, dynamic pause, suspenseful storytelling, theatrical delivery",
+    "comedy": "giggling, hilarious chuckle, playful laughing delivery, comedy stand-up tone",
+    "stern": "strict commanding authority, deep resonant courtroom gavel tone, intimidating",
+    "friendly": "warm, friendly, approachable, smiling and welcoming tone",
+    "casual": "conversational, relaxed, friendly chat with a best friend",
 }
 
 _CANCEL_EVENT = threading.Event()
@@ -1227,37 +1227,57 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
         )
         has_emotion = bool(style_instruction and (emo != "neutral" or custom_style))
 
-        # Dynamic prosody, guidance scaling & tempo based on emotional style
-        if emo in ("angry", "excited") and eff_cfg < 2.4:
-            eff_cfg = 2.4
-        elif emo in ("stern", "comedy") and eff_cfg < 2.2:
-            eff_cfg = 2.2
-        elif emo == "happy" and eff_cfg < 2.1:
-            eff_cfg = 2.1
-        elif emo in ("sad", "whisper") and eff_cfg > 1.8:
-            eff_cfg = 1.8
+        # Dynamic prosody, guidance scaling, tempo & pause duration based on emotional style
+        eff_pause_sec = 0.14
+        eff_steps = inference_timesteps
+        if emo in ("angry", "excited"):
+            if eff_cfg < 2.5:
+                eff_cfg = 2.5
+            if eff_steps < 18:
+                eff_steps = 18
+            eff_speed = 1.08 if abs(speed - 1.0) < 1e-4 else speed
+            eff_pause_sec = 0.08
+        elif emo in ("comedy", "happy"):
+            if eff_cfg < 2.4:
+                eff_cfg = 2.4
+            if eff_steps < 18:
+                eff_steps = 18
+            eff_speed = 1.05 if abs(speed - 1.0) < 1e-4 else speed
+            eff_pause_sec = 0.10
+        elif emo in ("sad", "whisper"):
+            if eff_cfg < 2.2:
+                eff_cfg = 2.2
+            if eff_steps < 18:
+                eff_steps = 18
+            eff_speed = 0.88 if abs(speed - 1.0) < 1e-4 else speed
+            eff_pause_sec = 0.30
+        elif emo == "stern":
+            if eff_cfg < 2.3:
+                eff_cfg = 2.3
+            eff_speed = 0.94 if abs(speed - 1.0) < 1e-4 else speed
+            eff_pause_sec = 0.18
+        elif emo in ("storytelling", "story"):
+            if eff_cfg < 2.4:
+                eff_cfg = 2.4
+            if eff_steps < 18:
+                eff_steps = 18
+            eff_pause_sec = 0.28
 
         # In direct zero-shot mode without reference transcript, ensure guidance is strong enough (>= 2.2)
         # to firmly transfer the speaker's acoustic timbre without drifting to the base model.
         if not ref_text and eff_cfg < 2.2 and not has_emotion:
             eff_cfg = 2.2
 
-        # Subtle stylistic pacing adjustment if speed is at default (1.0)
-        eff_speed = speed
-        if abs(speed - 1.0) < 1e-4:
-            if emo == "comedy":
-                eff_speed = 1.05
-            elif emo == "happy":
-                eff_speed = 1.04
-            elif emo in ("sad", "whisper"):
-                eff_speed = 0.92
-            elif emo == "stern":
-                eff_speed = 0.96
-
         # When emotion control is requested, VoxCPM2 requires controllable cloning mode
         # (reference_wav_path only without prompt_text), because prompt_text forces continuation
         # and overrides the parenthesized style instruction.
         eff_ultimate_clone = ultimate_clone and use_hifi and not has_emotion
+
+        # When high-expressive emotion is selected, bypass flat neutral LoRA weights unless
+        # explicitly forced, so the pre-trained 2M-hour emotional diffusion manifold is unlocked.
+        eff_use_lora = use_lora
+        if has_emotion and not kwargs.get("force_lora", False):
+            eff_use_lora = False
 
         update_generation_progress(
             active=True,
@@ -1269,11 +1289,11 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
             reset_timer=True,
         )
         try:
-            self.load(need_lora=bool(use_lora))
+            self.load(need_lora=bool(eff_use_lora))
             assert self.model is not None
             default_lora = PROJECT_ROOT / "models" / "voxcpm2_khmer_lora" / "lora_weights.safetensors"
-            if use_lora is not None and self.model_id == "voxcpm2_khmer":
-                if use_lora and default_lora.exists():
+            if eff_use_lora is not None and self.model_id == "voxcpm2_khmer":
+                if eff_use_lora and default_lora.exists():
                     try:
                         self.model.load_lora(str(default_lora))
                         self.model.set_lora_enabled(True)
@@ -1360,7 +1380,7 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
                         prompt_cache=prompt_cache,
                         min_len=2,
                         max_len=1600,
-                        inference_timesteps=inference_timesteps,
+                        inference_timesteps=eff_steps,
                         cfg_value=eff_cfg,
                         retry_badcase=True,
                         retry_badcase_max_times=2,
@@ -1378,7 +1398,7 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
                     gen_kwargs: dict[str, Any] = {
                         "text": chunk,
                         "cfg_value": eff_cfg,
-                        "inference_timesteps": inference_timesteps,
+                        "inference_timesteps": eff_steps,
                     }
                     if resolved_ref_audio and Path(resolved_ref_audio).exists():
                         gen_kwargs["reference_wav_path"] = clean_reference_audio_file(resolved_ref_audio)
@@ -1401,7 +1421,7 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
                 percent=97,
                 stage="Mastering 48kHz Studio Waveform...",
             )
-            audio = finalize_waveform(wav_segments, sr, pause_sec=0.14, speed=eff_speed)
+            audio = finalize_waveform(wav_segments, sr, pause_sec=eff_pause_sec, speed=eff_speed)
             latency = time.perf_counter() - t0
             duration = len(audio) / float(sr)
             base_name = AVAILABLE_MODELS[self.model_id]["name"]

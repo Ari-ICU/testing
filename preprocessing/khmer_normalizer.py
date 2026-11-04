@@ -492,7 +492,7 @@ def normalize_with_control(
     )
 
     if control_tag:
-        return f"({control_tag}) {normalized_body}".strip()
+        return f"({control_tag}){normalized_body}".strip()
     return normalized_body
 
 
@@ -588,5 +588,5 @@ def chunk_khmer_text(
 
     cleaned_chunks = [c for c in raw_chunks if c] or [""]
     if control_tag:
-        return [f"({control_tag}) {c}".strip() for c in cleaned_chunks]
+        return [f"({control_tag}){c}".strip() for c in cleaned_chunks]
     return cleaned_chunks
