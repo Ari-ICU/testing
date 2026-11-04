@@ -979,17 +979,35 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
         lora_cfg = None
         init_lora_path = None
         if inject_lora:
-            cfg_json = default_lora.parent / "lora_config.json"
-            if cfg_json.exists():
-                meta = json.loads(cfg_json.read_text(encoding="utf-8"))
-                lora_cfg = LoRAConfig(**meta.get("lora_config", {}))
-            else:
-                lora_cfg = LoRAConfig(enable_lm=True, enable_dit=True, r=16, alpha=32)
             init_lora_path = (
                 self.lora_weights_path
                 if (self.lora_weights_path and Path(self.lora_weights_path).exists())
                 else (str(default_lora) if default_lora.exists() else None)
             )
+            cfg_json = default_lora.parent / "lora_config.json"
+            if cfg_json.exists():
+                try:
+                    meta = json.loads(cfg_json.read_text(encoding="utf-8"))
+                    lora_cfg = LoRAConfig(**meta.get("lora_config", {}))
+                except Exception:
+                    lora_cfg = LoRAConfig(enable_lm=True, enable_dit=True, r=16, alpha=32)
+            else:
+                lora_cfg = LoRAConfig(enable_lm=True, enable_dit=True, r=16, alpha=32)
+
+            # Auto-align rank with the actual checkpoint tensor shapes to prevent dimension mismatches
+            if init_lora_path and Path(init_lora_path).exists():
+                try:
+                    from safetensors import safe_open
+                    with safe_open(init_lora_path, framework="pt") as sf_f:
+                        for key in sf_f.keys():
+                            if key.endswith(".lora_A"):
+                                actual_r = int(sf_f.get_slice(key).get_shape()[0])
+                                if actual_r > 0 and actual_r != lora_cfg.r:
+                                    lora_cfg.r = actual_r
+                                    lora_cfg.alpha = actual_r * 2
+                                break
+                except Exception:
+                    pass
 
         update_generation_progress(
             percent=2,
