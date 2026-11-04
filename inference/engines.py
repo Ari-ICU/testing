@@ -1273,10 +1273,11 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
         # and overrides the parenthesized style instruction.
         eff_ultimate_clone = ultimate_clone and use_hifi and not has_emotion
 
-        # When high-expressive emotion is selected, bypass flat neutral LoRA weights unless
-        # explicitly forced, so the pre-trained 2M-hour emotional diffusion manifold is unlocked.
+        # When emotion control is requested, honor explicit user selection:
+        # If use_lora is explicitly True (e.g., user fine-tuned custom emotional LoRA weights),
+        # keep it active. Only default to bypassing if use_lora was not explicitly specified (None).
         eff_use_lora = use_lora
-        if has_emotion and not kwargs.get("force_lora", False):
+        if use_lora is None and has_emotion and not kwargs.get("force_lora", False):
             eff_use_lora = False
 
         update_generation_progress(
