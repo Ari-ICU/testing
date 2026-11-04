@@ -1228,6 +1228,7 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
         has_emotion = bool(style_instruction and (emo != "neutral" or custom_style))
 
         # Dynamic prosody, guidance scaling, tempo & pause duration based on emotional style
+        eff_speed = speed
         eff_pause_sec = 0.14
         eff_steps = inference_timesteps
         if emo in ("angry", "excited"):
@@ -1261,6 +1262,7 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
                 eff_cfg = 2.4
             if eff_steps < 18:
                 eff_steps = 18
+            eff_speed = 0.92 if abs(speed - 1.0) < 1e-4 else speed
             eff_pause_sec = 0.28
 
         # In direct zero-shot mode without reference transcript, ensure guidance is strong enough (>= 2.2)
