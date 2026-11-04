@@ -1,5 +1,5 @@
 {
-  "step": 25,
+  "step": 75,
   "lora_config": {
     "enable_lm": true,
     "enable_dit": true,
