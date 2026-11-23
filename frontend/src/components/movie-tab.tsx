@@ -667,7 +667,7 @@ export function MovieTab() {
 
       {/* Top Project Setup Bar */}
       <Card className="p-4 md:p-5 border-slate-800/90 bg-[#0b1120]/90">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-center">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">
           <div className="md:col-span-5 space-y-1">
             <label className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
               ឈ្មោះគម្រោងភាពយន្ត (Project Title)
@@ -677,7 +677,7 @@ export function MovieTab() {
               value={sceneTitle}
               onChange={(e) => setSceneTitle(e.target.value)}
               placeholder="ឧ. រឿងភាគខ្មែរ - ឈុតទី ១..."
-              className="w-full rounded-lg border border-slate-800 bg-[#070b14] px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+              className="w-full h-[38px] rounded-lg border border-slate-800 bg-[#070b14] px-3 text-xs text-white placeholder-slate-500 focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
             />
           </div>
 
@@ -691,11 +691,12 @@ export function MovieTab() {
               onChange={setSelectedModelId}
               options={modelOptions}
               placeholder={isLoadingMeta ? "Loading models..." : "Select engine"}
+              className="[&>button]:h-[38px]"
             />
           </div>
 
-          <div className="md:col-span-3 flex items-center justify-between md:justify-end gap-3 pt-2 md:pt-5">
-            <div className="flex items-center gap-2.5 rounded-lg border border-slate-800 bg-[#070b14] px-3 py-2 w-full md:w-auto justify-between">
+          <div className="md:col-span-3 flex items-center justify-between md:justify-end gap-3">
+            <div className="flex h-[38px] items-center gap-2.5 rounded-lg border border-slate-800 bg-[#070b14] px-3 w-full md:w-auto justify-between">
               <div className="flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
                 <label htmlFor="use-lora-movie" className="cursor-pointer text-xs font-medium text-slate-200 select-none">
@@ -723,7 +724,7 @@ export function MovieTab() {
             <button
               type="button"
               onClick={() => srtInputRef.current?.click()}
-              className={`flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all cursor-pointer group ${
+              className={`min-w-0 w-full overflow-hidden flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all cursor-pointer group ${
                 srtFileName
                   ? "border-emerald-500/50 bg-emerald-950/20"
                   : "border-dashed border-slate-700/80 bg-[#0b1120]/70 hover:border-emerald-500/60 hover:bg-[#0e1628]"
@@ -746,7 +747,7 @@ export function MovieTab() {
             <button
               type="button"
               onClick={() => scriptInputRef.current?.click()}
-              className="flex items-center gap-3 rounded-xl border border-dashed border-slate-700/80 bg-[#0b1120]/70 p-3.5 text-left hover:border-sky-500/60 hover:bg-[#0e1628] transition-all cursor-pointer group"
+              className="min-w-0 w-full overflow-hidden flex items-center gap-3 rounded-xl border border-dashed border-slate-700/80 bg-[#0b1120]/70 p-3.5 text-left hover:border-sky-500/60 hover:bg-[#0e1628] transition-all cursor-pointer group"
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400">
                 <Wand2 className="h-5 w-5" />
@@ -767,7 +768,7 @@ export function MovieTab() {
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === "Enter" && videoInputRef.current?.click()}
-              className={`flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all cursor-pointer group ${
+              className={`min-w-0 w-full overflow-hidden flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all cursor-pointer group ${
                 videoFile
                   ? "border-cyan-500/50 bg-cyan-950/20"
                   : "border-dashed border-slate-700/80 bg-[#0b1120]/70 hover:border-cyan-500/60 hover:bg-[#0e1628]"
