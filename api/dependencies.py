@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import subprocess
 import threading
-from typing import Any
+from typing import Any, Callable, TypeVar
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
-from inference.engines import AVAILABLE_MODELS, get_engine, release_memory
+from inference.engines import AVAILABLE_MODELS, get_engine, release_memory, request_cancel
+
+_T = TypeVar("_T")
 
 _ACTIVE_ENGINES: dict[str, Any] = {}
 _ENGINE_LOCK = threading.Lock()
@@ -55,4 +58,19 @@ def set_finetune_proc(proc: subprocess.Popen[str] | None) -> None:
     """Set or clear the active fine-tuning subprocess handle."""
     global _FINETUNE_PROC
     _FINETUNE_PROC = proc
+
+
+async def run_cancellable_thread(request: Request, fn: Callable[[], _T]) -> _T:
+    """Run blocking synthesis in a worker thread and cancel if the client disconnects."""
+    task = asyncio.create_task(asyncio.to_thread(fn))
+    try:
+        while not task.done():
+            if await request.is_disconnected():
+                request_cancel()
+                break
+            await asyncio.sleep(0.25)
+        return await task
+    except asyncio.CancelledError:
+        request_cancel()
+        raise
 

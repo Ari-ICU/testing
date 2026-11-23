@@ -8,11 +8,11 @@ import tempfile
 from typing import Any
 import uuid
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 import soundfile as sf
 
 from api.config import GENERATED_DIR
-from api.dependencies import get_cached_engine, get_engine_lock
+from api.dependencies import get_cached_engine, get_engine_lock, run_cancellable_thread
 from api.schemas.synthesis import (
     NormalizeRequest,
     NormalizeResponse,
@@ -74,7 +74,7 @@ async def api_warmup(model_id: str = "voxcpm2_khmer") -> dict[str, Any]:
 
 
 @router.post("/synthesize", response_model=SynthesisResponse)
-async def api_synthesize(req: SynthesizeRequest) -> SynthesisResponse:
+async def api_synthesize(request: Request, req: SynthesizeRequest) -> SynthesisResponse:
     """Synthesize speech using selected model and speaker preset."""
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty.")
@@ -97,7 +97,7 @@ async def api_synthesize(req: SynthesizeRequest) -> SynthesisResponse:
             )
 
     try:
-        res = await asyncio.to_thread(_run_sync_synth)
+        res = await run_cancellable_thread(request, _run_sync_synth)
     except GenerationCancelledError as exc:
         raise HTTPException(status_code=499, detail="Generation cancelled by user.") from exc
     except Exception as exc:
@@ -132,6 +132,7 @@ async def api_synthesize(req: SynthesizeRequest) -> SynthesisResponse:
 
 @router.post("/clone", response_model=SynthesisResponse)
 async def api_clone_voice(
+    request: Request,
     text: str = Form(..., description="Khmer text to speak"),
     model_id: str = Form("voxcpm2_khmer", description="Model ID"),
     preset_voice: str = Form("female", description="Preset voice ID or 'custom'"),
@@ -201,7 +202,7 @@ async def api_clone_voice(
                     use_hifi_clone=use_hifi_clone,
                 )
 
-        res = await asyncio.to_thread(_run_sync_clone)
+        res = await run_cancellable_thread(request, _run_sync_clone)
     except GenerationCancelledError as exc:
         raise HTTPException(status_code=499, detail="Generation cancelled by user.") from exc
     finally:

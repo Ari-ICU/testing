@@ -1148,12 +1148,15 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
             except Exception:
                 pass
 
-        if hasattr(tts_model, "stop_head"):
+        if hasattr(tts_model, "feat_decoder") or hasattr(tts_model, "stop_head"):
             def _cancel_check_hook(_module: Any, _inputs: Any) -> None:
                 if is_cancelled():
                     raise GenerationCancelledError("Generation cancelled by user.")
 
-            tts_model.stop_head.register_forward_pre_hook(_cancel_check_hook)
+            if hasattr(tts_model, "feat_decoder"):
+                tts_model.feat_decoder.register_forward_pre_hook(_cancel_check_hook)
+            if hasattr(tts_model, "stop_head"):
+                tts_model.stop_head.register_forward_pre_hook(_cancel_check_hook)
         if hasattr(tts_model, "feat_decoder"):
             def _live_latent_hook(_module: Any, _inputs: Any, output: Any) -> None:
                 try:

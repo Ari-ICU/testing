@@ -196,6 +196,24 @@ export function MovieTab() {
   const [playingLineIdx, setPlayingLineIdx] = React.useState<number | null>(null);
   const lineAudioRef = React.useRef<HTMLAudioElement | null>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
+  const isDubbingRef = React.useRef(false);
+  isDubbingRef.current = isDubbing;
+
+  // Cancel active backend dubbing if user reloads or leaves page
+  React.useEffect(() => {
+    const cancelIfRunning = () => {
+      if (!isDubbingRef.current) return;
+      abortControllerRef.current?.abort();
+      if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+        navigator.sendBeacon(getApiUrl("/api/cancel"));
+      }
+    };
+    window.addEventListener("beforeunload", cancelIfRunning);
+    return () => {
+      window.removeEventListener("beforeunload", cancelIfRunning);
+      cancelIfRunning();
+    };
+  }, []);
 
   const srtInputRef = React.useRef<HTMLInputElement>(null);
   const scriptInputRef = React.useRef<HTMLInputElement>(null);
@@ -609,10 +627,32 @@ export function MovieTab() {
 
   const handleCancelDubbing = async () => {
     abortControllerRef.current?.abort();
-    try {
-      await fetch(getApiUrl("/api/cancel"), { method: "POST" });
-    } catch {}
+    isDubbingRef.current = false;
     setIsDubbing(false);
+    try {
+      await Promise.all([
+        fetch(getApiUrl("/api/cancel"), { method: "POST" }),
+        fetch(getApiUrl("/api/movie/cancel"), { method: "POST" }),
+      ]);
+    } catch {}
+  };
+
+  const handleClearAll = async () => {
+    await handleCancelDubbing();
+    setLines([]);
+    setSrtFileName(null);
+    setRawEditorText("");
+    setSearchQuery("");
+    setCharacterFilter("all");
+    setCurrentPage(1);
+    setVideoFile(null);
+    setVideoPreviewUrl(null);
+    setDubbedVideoUrl(null);
+    setMasterAudioUrl(null);
+    setTotalDuration(0);
+    setSrtSubtitles("");
+    setResultLines([]);
+    setErrorMessage(null);
   };
 
   const handleCopySrt = () => {
@@ -868,18 +908,14 @@ export function MovieTab() {
                   </button>
                 </div>
 
-                {lines.length > 0 && (
+                {(lines.length > 0 || isDubbing || rawEditorText || videoFile || hasOutputs) && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setLines([]);
-                      setSrtFileName(null);
-                      setSearchQuery("");
-                      setCharacterFilter("all");
-                    }}
+                    onClick={handleClearAll}
                     className="px-2.5 py-1 text-xs text-slate-400 hover:text-rose-400 rounded-md hover:bg-rose-950/20 transition-colors cursor-pointer"
+                    title="Clear all inputs and stop any active synthesis"
                   >
-                    Clear
+                    Clear All
                   </button>
                 )}
               </div>

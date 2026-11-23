@@ -22,12 +22,12 @@ import time
 import uuid
 from typing import Any, Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 import numpy as np
 import soundfile as sf
 
 from api.config import GENERATED_DIR, PROJECT_ROOT
-from api.dependencies import get_cached_engine, get_engine_lock
+from api.dependencies import get_cached_engine, get_engine_lock, run_cancellable_thread
 from api.schemas.movie import (
     MovieDialogueLine,
     MovieDialogueResultItem,
@@ -40,7 +40,13 @@ from api.schemas.movie import (
     SubtitledLine,
     VideoDubResponse,
 )
-from inference.engines import GenerationCancelledError, clear_cancel, is_cancelled, load_voice_profiles
+from inference.engines import (
+    GenerationCancelledError,
+    clear_cancel,
+    is_cancelled,
+    load_voice_profiles,
+    request_cancel,
+)
 from preprocessing.khmer_normalizer import normalize_khmer_text
 
 router = APIRouter(prefix="/api/movie", tags=["movie"])
@@ -114,6 +120,14 @@ def api_movie_progress() -> dict[str, Any]:
         started = float(state.get("started_at", 0.0))
         state["elapsed_sec"] = round(max(0.0, time.perf_counter() - started), 1) if (state.get("active") and started > 0) else 0.0
         return state
+
+
+@router.post("/cancel")
+def api_movie_cancel() -> dict[str, str]:
+    """Cancel active movie dubbing and reset progress state."""
+    request_cancel()
+    _update_movie_progress(active=False, percent=0, stage="Cancelled")
+    return {"status": "cancelled"}
 
 CHARACTER_VOICE_MAP: dict[str, str] = {
     "ទិនហ្វី": "tinfy",
@@ -391,7 +405,7 @@ async def api_parse_srt(
 
 
 @router.post("/dub", response_model=MovieDubResponse)
-async def api_dub_movie_scene(req: MovieDubRequest) -> MovieDubResponse:
+async def api_dub_movie_scene(request: Request, req: MovieDubRequest) -> MovieDubResponse:
     """Synthesize a complete multi-character movie scene, generating master WAV and SRT subtitles."""
     lines_to_dub = req.lines
     if not lines_to_dub and req.script_text:
@@ -466,7 +480,7 @@ async def api_dub_movie_scene(req: MovieDubRequest) -> MovieDubResponse:
             return results, stitched_audio, sr
 
     try:
-        line_results, master_audio, sample_rate = await asyncio.to_thread(_run_movie_synthesis)
+        line_results, master_audio, sample_rate = await run_cancellable_thread(request, _run_movie_synthesis)
     except GenerationCancelledError as exc:
         raise HTTPException(status_code=499, detail="Movie dubbing cancelled.") from exc
     except Exception as exc:
@@ -503,6 +517,7 @@ async def api_dub_movie_scene(req: MovieDubRequest) -> MovieDubResponse:
 
 @router.post("/dub-video", response_model=VideoDubResponse)
 async def api_dub_video(
+    request: Request,
     lines_json: str = Form(..., description="JSON array of SubtitledLine items"),
     title: str = Form("Dubbed Movie Scene"),
     model_id: str = Form("voxcpm2_khmer"),
@@ -634,7 +649,7 @@ async def api_dub_video(
             return results, final_master, sr
 
     try:
-        line_results, master_audio, sample_rate = await asyncio.to_thread(_run_subtitled_dubbing)
+        line_results, master_audio, sample_rate = await run_cancellable_thread(request, _run_subtitled_dubbing)
     except GenerationCancelledError as exc:
         _update_movie_progress(active=False, stage="Cancelled")
         if tmp_video_path:
