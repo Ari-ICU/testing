@@ -17,6 +17,8 @@ import re
 import shutil
 import subprocess
 import tempfile
+import threading
+import time
 import uuid
 from typing import Any, Optional
 
@@ -42,6 +44,76 @@ from inference.engines import GenerationCancelledError, clear_cancel, is_cancell
 from preprocessing.khmer_normalizer import normalize_khmer_text
 
 router = APIRouter(prefix="/api/movie", tags=["movie"])
+
+_MOVIE_PROGRESS_LOCK = threading.Lock()
+_MOVIE_PROGRESS_STATE: dict[str, Any] = {
+    "active": False,
+    "current_line": 0,
+    "completed_lines": 0,
+    "total_lines": 0,
+    "percent": 0,
+    "stage": "Idle",
+    "current_character": "",
+    "current_text": "",
+    "started_at": 0.0,
+    "eta_sec": None,
+}
+
+
+def _update_movie_progress(
+    *,
+    active: bool | None = None,
+    current_line: int | None = None,
+    completed_lines: int | None = None,
+    total_lines: int | None = None,
+    percent: int | None = None,
+    stage: str | None = None,
+    current_character: str | None = None,
+    current_text: str | None = None,
+    reset_timer: bool = False,
+) -> None:
+    """Thread-safe progress tracker for multi-line movie dubbing."""
+    with _MOVIE_PROGRESS_LOCK:
+        if reset_timer:
+            _MOVIE_PROGRESS_STATE["started_at"] = time.perf_counter()
+            _MOVIE_PROGRESS_STATE["eta_sec"] = None
+            _MOVIE_PROGRESS_STATE["completed_lines"] = 0
+        if active is not None:
+            _MOVIE_PROGRESS_STATE["active"] = active
+        if current_line is not None:
+            _MOVIE_PROGRESS_STATE["current_line"] = current_line
+        if completed_lines is not None:
+            _MOVIE_PROGRESS_STATE["completed_lines"] = completed_lines
+        if total_lines is not None:
+            _MOVIE_PROGRESS_STATE["total_lines"] = total_lines
+        if percent is not None:
+            _MOVIE_PROGRESS_STATE["percent"] = max(0, min(100, percent))
+        if stage is not None:
+            _MOVIE_PROGRESS_STATE["stage"] = stage
+        if current_character is not None:
+            _MOVIE_PROGRESS_STATE["current_character"] = current_character
+        if current_text is not None:
+            _MOVIE_PROGRESS_STATE["current_text"] = current_text
+
+        comp = int(_MOVIE_PROGRESS_STATE.get("completed_lines", 0))
+        tot = int(_MOVIE_PROGRESS_STATE.get("total_lines", 0))
+        started = float(_MOVIE_PROGRESS_STATE.get("started_at", 0.0))
+        if comp > 0 and tot > comp and started > 0:
+            elapsed = max(0.1, time.perf_counter() - started)
+            avg_per_line = elapsed / comp
+            _MOVIE_PROGRESS_STATE["eta_sec"] = round(avg_per_line * (tot - comp), 1)
+        elif comp >= tot and tot > 0:
+            _MOVIE_PROGRESS_STATE["eta_sec"] = 0.0
+
+
+@router.get("/progress")
+def api_movie_progress() -> dict[str, Any]:
+    """Poll real-time multi-line movie dubbing progress."""
+    with _MOVIE_PROGRESS_LOCK:
+        state = dict(_MOVIE_PROGRESS_STATE)
+        started = float(state.get("started_at", 0.0))
+        state["elapsed_sec"] = round(max(0.0, time.perf_counter() - started), 1) if (state.get("active") and started > 0) else 0.0
+        return state
 
 CHARACTER_VOICE_MAP: dict[str, str] = {
     "ទិនហ្វី": "tinfy",
@@ -451,10 +523,23 @@ async def api_dub_video(
 
     clear_cancel()
     voices = load_voice_profiles()
+    total_count = len(sub_lines)
+    _update_movie_progress(
+        active=True,
+        current_line=0,
+        completed_lines=0,
+        total_lines=total_count,
+        percent=1,
+        stage="Initializing engine & subtitle timeline...",
+        current_character="",
+        current_text="",
+        reset_timer=True,
+    )
 
     # Save uploaded video if present
     tmp_video_path: Optional[Path] = None
     if video is not None and video.filename:
+        _update_movie_progress(percent=3, stage="Saving uploaded video file...")
         video_suffix = Path(video.filename).suffix or ".mp4"
         tmp_video = tempfile.NamedTemporaryFile(delete=False, suffix=video_suffix)
         tmp_video.write(await video.read())
@@ -463,6 +548,7 @@ async def api_dub_video(
 
     def _run_subtitled_dubbing() -> tuple[list[dict[str, Any]], np.ndarray, int]:
         with get_engine_lock():
+            _update_movie_progress(percent=5, stage="Loading VoxCPM 2 Khmer model...")
             engine = get_cached_engine(model_id)
             sr = 48000
 
@@ -475,6 +561,16 @@ async def api_dub_video(
             for idx, line in enumerate(sub_lines):
                 if is_cancelled():
                     raise GenerationCancelledError("Video dubbing cancelled by user.")
+
+                pct = 6 + int((idx / max(1, total_count)) * (86 if tmp_video_path else 92))
+                _update_movie_progress(
+                    current_line=idx + 1,
+                    completed_lines=idx,
+                    percent=pct,
+                    current_character=line.character,
+                    current_text=line.text[:80],
+                    stage=f"Synthesizing line {idx + 1} / {total_count} ({line.character})...",
+                )
 
                 voice_id = line.voice if line.voice in voices else "female"
                 clean_t = normalize_khmer_text(line.text)
@@ -523,6 +619,7 @@ async def api_dub_video(
                     "duration": round(dur, 3),
                     "audio_url": f"/audio/api_generated/{line_wav_id}",
                 })
+                _update_movie_progress(completed_lines=idx + 1)
 
             # Trim trailing silence
             non_zeros = np.nonzero(master_buffer)[0]
@@ -539,10 +636,12 @@ async def api_dub_video(
     try:
         line_results, master_audio, sample_rate = await asyncio.to_thread(_run_subtitled_dubbing)
     except GenerationCancelledError as exc:
+        _update_movie_progress(active=False, stage="Cancelled")
         if tmp_video_path:
             tmp_video_path.unlink(missing_ok=True)
         raise HTTPException(status_code=499, detail="Dubbing cancelled.") from exc
     except Exception as exc:
+        _update_movie_progress(active=False, stage="Failed")
         if tmp_video_path:
             tmp_video_path.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=f"Dubbing failed: {exc}") from exc
@@ -572,13 +671,14 @@ async def api_dub_video(
     # If Video was uploaded, multiplex audio into video using ffmpeg
     dubbed_video_url: Optional[str] = None
     if tmp_video_path and tmp_video_path.exists():
+        _update_movie_progress(percent=94, stage="Merging dubbed Khmer audio into video (FFmpeg)...")
         ffmpeg_bin = shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
         if ffmpeg_bin and Path(ffmpeg_bin).exists():
             out_video_id = f"dubbed_video_{clean_title}_{unique_tag}.mp4"
             out_video_path = GENERATED_DIR / out_video_id
 
             if mix_original_audio:
-                # Keep original audio ducked to 15% and layer Khmer dubbed speech on top
+                # Keep original audio ducked to bg_volume and layer Khmer dubbed speech on top
                 cmd = [
                     ffmpeg_bin,
                     "-y",
@@ -622,38 +722,43 @@ async def api_dub_video(
                     str(out_video_path),
                 ]
 
-            try:
-                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=120)
+            def _mux_video_sync() -> Optional[str]:
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=300)
                 if res.returncode == 0 and out_video_path.exists():
-                    dubbed_video_url = f"/audio/api_generated/{out_video_id}"
-                else:
-                    # Fallback without filter_complex if original video had no audio track
-                    fallback_cmd = [
-                        ffmpeg_bin,
-                        "-y",
-                        "-i",
-                        str(tmp_video_path),
-                        "-i",
-                        str(master_wav_path),
-                        "-map",
-                        "0:v:0",
-                        "-map",
-                        "1:a:0",
-                        "-c:v",
-                        "copy",
-                        "-c:a",
-                        "aac",
-                        "-b:a",
-                        "256k",
-                        str(out_video_path),
-                    ]
-                    f_res = subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
-                    if f_res.returncode == 0 and out_video_path.exists():
-                        dubbed_video_url = f"/audio/api_generated/{out_video_id}"
+                    return f"/audio/api_generated/{out_video_id}"
+                # Fallback without filter_complex if original video had no audio track
+                fallback_cmd = [
+                    ffmpeg_bin,
+                    "-y",
+                    "-i",
+                    str(tmp_video_path),
+                    "-i",
+                    str(master_wav_path),
+                    "-map",
+                    "0:v:0",
+                    "-map",
+                    "1:a:0",
+                    "-c:v",
+                    "copy",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "256k",
+                    str(out_video_path),
+                ]
+                f_res = subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=180)
+                if f_res.returncode == 0 and out_video_path.exists():
+                    return f"/audio/api_generated/{out_video_id}"
+                return None
+
+            try:
+                dubbed_video_url = await asyncio.to_thread(_mux_video_sync)
             except Exception as ffmpeg_err:
                 print(f"[!] Warning: FFmpeg multiplexing failed: {ffmpeg_err}")
             finally:
                 tmp_video_path.unlink(missing_ok=True)
+
+    _update_movie_progress(active=False, percent=100, stage="Complete")
 
     return VideoDubResponse(
         title=title,

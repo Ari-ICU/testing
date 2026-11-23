@@ -9,32 +9,19 @@ import { CustomDropdown, DropdownOption } from "./ui/custom-dropdown";
 import { Badge } from "./ui/badge";
 import { MicRecorder } from "./ui/mic-recorder";
 
-const ANCHOR_VOICE_OPTIONS: DropdownOption[] = [
-  { value: "tinfy", label: "🎭 ទិនហ្វី — Tinfy", sublabel: "Classic Khmer Comedy Movie Dub", icon: "🎭" },
-  { value: "pao_chin", label: "⚖️ ប៉ាវចិន — Pao Chin", sublabel: "Judge Bao Deep Booming Dub", icon: "⚖️" },
-  { value: "female", label: "👩 សុភា — Sophea", sublabel: "Real Female #1 (f-adt1-0002)", icon: "👩" },
-  { value: "male", label: "👨 តារា — Dara", sublabel: "Real Male #1 (m-adt1-0002)", icon: "👨" },
-  { value: "female_news", label: "👩‍💼 បុប្ផា — Bopha", sublabel: "Real Female #2 (f-adt2-0002)", icon: "👩‍💼" },
-  { value: "male_narrator", label: "👨‍🏫 វណ្ណៈ — Vannak", sublabel: "Real Male #2 (m-adt1-0001)", icon: "👨‍🏫" },
-  { value: "female_youth", label: "👧 ចន្ធូ — Chanthou", sublabel: "Real Female #3 (f-adt1-0001)", icon: "👧" },
-  { value: "male_podcast", label: "🎙️ រិទ្ធី — Rithy", sublabel: "Real Male #3 (m-adt2-0002)", icon: "🎙️" },
-  { value: "male_heritage", label: "🏛️ សុខា — Sokha", sublabel: "Real Male #4 (m-adt2-0001)", icon: "🏛️" },
-  { value: "male_reporter", label: "📰 ចាន់ — Chan", sublabel: "Phnom Penh News Reporter", icon: "📰" },
-];
-
-const SPEAKER_FILTER_OPTIONS: DropdownOption[] = [
-  { value: "all", label: "🇰🇭 All 10 Cambodian Speakers", sublabel: "32 Authentic Human Speech Clips", badge: "32 Clips" },
-  { value: "tinfy", label: "🎭 Only ទិនហ្វី (Tinfy)", sublabel: "4 Classic Comedy Dub Utterances", badge: "4 Clips" },
-  { value: "pao_chin", label: "⚖️ Only ប៉ាវចិន (Pao Chin)", sublabel: "4 Judge Bao Booming Dub Utterances", badge: "4 Clips" },
-  { value: "female", label: "👩 Only សុភា (Sophea)", sublabel: "3 Clips · f-adt1-0002", badge: "3 Clips" },
-  { value: "male", label: "👨 Only តារា (Dara)", sublabel: "3 Clips · m-adt1-0002", badge: "3 Clips" },
-  { value: "female_news", label: "👩‍💼 Only បុប្ផា (Bopha)", sublabel: "3 Clips · f-adt2-0002", badge: "3 Clips" },
-  { value: "male_narrator", label: "👨‍🏫 Only វណ្ណៈ (Vannak)", sublabel: "3 Clips · m-adt1-0001", badge: "3 Clips" },
-  { value: "female_youth", label: "👧 Only ចន្ធូ (Chanthou)", sublabel: "3 Clips · f-adt1-0001", badge: "3 Clips" },
-  { value: "male_podcast", label: "🎙️ Only រិទ្ធី (Rithy)", sublabel: "3 Clips · m-adt2-0002", badge: "3 Clips" },
-  { value: "male_heritage", label: "🏛️ Only សុខា (Sokha)", sublabel: "3 Clips · m-adt2-0001", badge: "3 Clips" },
-  { value: "male_reporter", label: "📰 Only ចាន់ (Chan)", sublabel: "3 Clips · GRKPP Broadcaster", badge: "3 Clips" },
-];
+function splitVoiceLabel(rawLabel: string, fallbackId: string, description?: string): { label: string; sublabel: string } {
+  const idx = rawLabel.indexOf(" (");
+  if (idx > 0 && rawLabel.endsWith(")")) {
+    return {
+      label: rawLabel.slice(0, idx).trim(),
+      sublabel: rawLabel.slice(idx + 2, -1).trim(),
+    };
+  }
+  return {
+    label: rawLabel || fallbackId,
+    sublabel: description || "",
+  };
+}
 
 const LORA_RANK_OPTIONS: DropdownOption[] = [
   { value: "8", label: "r = 8 (Fastest, Minimal Memory)", sublabel: "Lightweight adapter" },
@@ -69,10 +56,14 @@ interface DatasetSample {
 
 export function FinetuneTab() {
   const [samples, setSamples] = React.useState<DatasetSample[]>([]);
+  const [anchorVoiceOptions, setAnchorVoiceOptions] = React.useState<DropdownOption[]>([]);
+  const [speakerFilterOptions, setSpeakerFilterOptions] = React.useState<DropdownOption[]>([
+    { value: "all", label: "🇰🇭 All Speakers", sublabel: "Load full dataset manifest" },
+  ]);
   const [isLoadingSamples, setIsLoadingSamples] = React.useState(false);
 
   // Add Clip form
-  const [ftPresetAnchor, setFtPresetAnchor] = React.useState("tinfy");
+  const [ftPresetAnchor, setFtPresetAnchor] = React.useState("female");
   const [ftEmotion, setFtEmotion] = React.useState("neutral");
   const [ftTranscript, setFtTranscript] = React.useState("");
   const [ftFile, setFtFile] = React.useState<File | null>(null);
@@ -127,6 +118,25 @@ export function FinetuneTab() {
   React.useEffect(() => {
     fetchDataset();
     pollTrainingStatus();
+    fetch(getApiUrl("/api/voices"))
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data?.voices) return;
+        const voices = Object.values(data.voices).map((v: any) => {
+          const { label, sublabel } = splitVoiceLabel(v.label || "", v.id, v.description);
+          return {
+            value: v.id,
+            label,
+            sublabel,
+          };
+        });
+        setAnchorVoiceOptions(voices);
+        setSpeakerFilterOptions([
+          { value: "all", label: `🇰🇭 All ${voices.length} Speakers`, sublabel: "Load full dataset manifest" },
+          ...voices,
+        ]);
+      })
+      .catch(() => {});
   }, [fetchDataset, pollTrainingStatus]);
 
   React.useEffect(() => {
@@ -296,7 +306,7 @@ export function FinetuneTab() {
               label="Pair with Cambodian Speaker Anchor"
               value={ftPresetAnchor}
               onChange={setFtPresetAnchor}
-              options={ANCHOR_VOICE_OPTIONS}
+              options={anchorVoiceOptions}
             />
 
             {/* Custom Dropdown: Emotion & Style */}
@@ -344,9 +354,10 @@ export function FinetuneTab() {
             <div className="flex items-center gap-2">
               <div className="w-64">
                 <CustomDropdown
+                  compact
                   value={speakerFilter}
                   onChange={setSpeakerFilter}
-                  options={SPEAKER_FILTER_OPTIONS}
+                  options={speakerFilterOptions}
                 />
               </div>
               <Button

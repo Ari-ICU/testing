@@ -58,6 +58,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
 };
 
 const SIDEBAR_COLLAPSED_KEY = "kv-sidebar-collapsed";
+const ACTIVE_TAB_KEY = "kv-active-tab";
 
 export default function Home() {
   const [mounted, setMounted] = React.useState(false);
@@ -68,7 +69,16 @@ export default function Home() {
 
   React.useEffect(() => {
     setCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1");
+    const savedTab = localStorage.getItem(ACTIVE_TAB_KEY);
+    if (savedTab && PAGE_TITLES[savedTab]) {
+      setActiveTab(savedTab);
+    }
     setMounted(true);
+  }, []);
+
+  const handleSelectTab = React.useCallback((id: string) => {
+    setActiveTab(id);
+    localStorage.setItem(ACTIVE_TAB_KEY, id);
   }, []);
 
   const toggleCollapsed = React.useCallback(() => {
@@ -119,7 +129,7 @@ export default function Home() {
       <AppSidebar
         items={NAV_ITEMS}
         activeId={activeTab}
-        onChange={setActiveTab}
+        onChange={handleSelectTab}
         backendOnline={backendOnline}
         collapsed={collapsed}
         onToggleCollapsed={toggleCollapsed}

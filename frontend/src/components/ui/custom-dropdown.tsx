@@ -24,6 +24,7 @@ export interface CustomDropdownProps {
   disabled?: boolean;
   className?: string;
   searchable?: boolean;
+  compact?: boolean;
 }
 
 export function CustomDropdown({
@@ -35,6 +36,7 @@ export function CustomDropdown({
   disabled = false,
   className,
   searchable = false,
+  compact = false,
 }: CustomDropdownProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -42,18 +44,23 @@ export function CustomDropdown({
 
   const selectedOption = options.find((opt) => opt.value === value);
 
-  // Click outside listener
+  // Click outside & Escape listener
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setIsOpen(false);
+    }
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
 
@@ -81,24 +88,25 @@ export function CustomDropdown({
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg border text-left transition-all duration-150 select-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/40",
+          "w-full flex items-center justify-between border text-left transition-all duration-150 select-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/40",
+          compact ? "gap-2 px-2.5 py-1.5 rounded-lg" : "gap-3 px-3.5 py-2.5 rounded-lg",
           isOpen
             ? "border-emerald-500/70 bg-[#0d1527] shadow-sm"
             : "border-slate-800 bg-[#0b1120] hover:border-slate-700 hover:bg-[#0e1628]",
           disabled && "opacity-50 cursor-not-allowed pointer-events-none"
         )}
       >
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          {selectedOption?.icon && (
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {selectedOption?.icon && !compact && (
             <span className="flex-shrink-0 text-base flex items-center justify-center w-6 h-6 rounded bg-slate-800/80">
               {selectedOption.icon}
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium text-slate-100 truncate">
+            <div className={cn("font-medium text-slate-100 truncate", compact ? "text-xs" : "text-sm")}>
               {selectedOption ? selectedOption.label : placeholder}
             </div>
-            {selectedOption?.sublabel && (
+            {selectedOption?.sublabel && !compact && (
               <div className="text-xs text-slate-400 truncate">
                 {selectedOption.sublabel}
               </div>
@@ -107,7 +115,7 @@ export function CustomDropdown({
         </div>
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {selectedOption?.badge && (
+          {selectedOption?.badge && !compact && (
             <span className="text-[11px] font-medium px-2 py-0.5 rounded border border-emerald-800/60 bg-emerald-950/40 text-emerald-300">
               {selectedOption.badge}
             </span>
@@ -116,7 +124,7 @@ export function CustomDropdown({
             animate={{ rotate: isOpen ? 180 : 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
           >
-            <ChevronDown className="w-4 h-4 text-slate-400" />
+            <ChevronDown className={cn("text-slate-400", compact ? "w-3.5 h-3.5" : "w-4 h-4")} />
           </motion.div>
         </div>
       </button>
@@ -129,7 +137,10 @@ export function CustomDropdown({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 3, scale: 0.98 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
-            className="absolute z-50 mt-1.5 w-full rounded-xl border border-slate-700/80 bg-[#0a101d] p-1.5 shadow-2xl backdrop-blur-md max-h-80 overflow-y-auto"
+            className={cn(
+              "absolute z-50 mt-1.5 rounded-xl border border-slate-700/80 bg-[#0a101d] p-1.5 shadow-2xl backdrop-blur-md max-h-80 overflow-y-auto",
+              compact ? "min-w-[260px] w-max max-w-[340px]" : "w-full"
+            )}
           >
             {searchable && (
               <div className="p-1.5 mb-1 border-b border-slate-800 flex items-center gap-2">
