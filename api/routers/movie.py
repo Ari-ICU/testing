@@ -345,6 +345,8 @@ async def api_dub_movie_scene(req: MovieDubRequest) -> MovieDubResponse:
 
                 voice_id = line.voice if line.voice in voices else "female"
                 clean_t = normalize_khmer_text(line.text)
+                if not clean_t.strip():
+                    continue
 
                 synth_res = engine.synthesize(
                     text=clean_t,
@@ -476,6 +478,8 @@ async def api_dub_video(
 
                 voice_id = line.voice if line.voice in voices else "female"
                 clean_t = normalize_khmer_text(line.text)
+                if not clean_t.strip():
+                    continue
 
                 synth_res = engine.synthesize(
                     text=clean_t,

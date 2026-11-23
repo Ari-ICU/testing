@@ -1057,8 +1057,9 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
         torch.nn.init.normal_ = lambda t, *a, **kw: t
         torch.nn.init.uniform_ = lambda t, *a, **kw: t
         torch.set_default_dtype(torch.bfloat16)
+        dev_choice = "mps" if (torch.backends.mps.is_built() and torch.backends.mps.is_available()) else "auto"
         try:
-            tts_model = VoxCPM2Model(config, tokenizer, audio_vae, lora_config=lora_cfg, device="mps")
+            tts_model = VoxCPM2Model(config, tokenizer, audio_vae, lora_config=lora_cfg, device=dev_choice)
         finally:
             torch.set_default_dtype(orig_dtype)
             torch.nn.init.kaiming_uniform_ = orig_kaiming
