@@ -197,7 +197,10 @@ export function MovieTab() {
   const lineAudioRef = React.useRef<HTMLAudioElement | null>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const isDubbingRef = React.useRef(false);
-  isDubbingRef.current = isDubbing;
+
+  React.useEffect(() => {
+    isDubbingRef.current = isDubbing;
+  }, [isDubbing]);
 
   // Cancel active backend dubbing if user reloads or leaves page
   React.useEffect(() => {

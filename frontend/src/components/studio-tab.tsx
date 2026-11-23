@@ -143,6 +143,27 @@ export function StudioTab() {
 
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const isGeneratingRef = React.useRef(false);
+
+  React.useEffect(() => {
+    isGeneratingRef.current = isGenerating;
+  }, [isGenerating]);
+
+  // Cancel active backend generation if user reloads or leaves page
+  React.useEffect(() => {
+    const cancelIfRunning = () => {
+      if (!isGeneratingRef.current) return;
+      abortControllerRef.current?.abort();
+      if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+        navigator.sendBeacon(getApiUrl("/api/cancel"));
+      }
+    };
+    window.addEventListener("beforeunload", cancelIfRunning);
+    return () => {
+      window.removeEventListener("beforeunload", cancelIfRunning);
+      cancelIfRunning();
+    };
+  }, []);
 
   // Fetch real models & voices from backend
   React.useEffect(() => {
@@ -349,10 +370,20 @@ export function StudioTab() {
 
   const handleCancel = async () => {
     abortControllerRef.current?.abort();
+    isGeneratingRef.current = false;
+    setIsGenerating(false);
     try {
       await fetch(getApiUrl("/api/cancel"), { method: "POST" });
     } catch {}
-    setIsGenerating(false);
+  };
+
+  const handleClear = async () => {
+    if (isGeneratingRef.current) {
+      await handleCancel();
+    }
+    setText("");
+    setNormData(null);
+    setErrorMessage(null);
   };
 
   return (
@@ -370,14 +401,11 @@ export function StudioTab() {
                 <Badge variant="secondary" className="font-mono text-[11px]">
                   {text.trim().length} chars
                 </Badge>
-                {text && (
+                {(text || isGenerating) && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setText("");
-                      setNormData(null);
-                    }}
-                    className="text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                    onClick={handleClear}
+                    className="text-xs text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
                   >
                     Clear
                   </button>
