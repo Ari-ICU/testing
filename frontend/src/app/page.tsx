@@ -59,22 +59,25 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
 
 const SIDEBAR_COLLAPSED_KEY = "kv-sidebar-collapsed";
 const ACTIVE_TAB_KEY = "kv-active-tab";
+const emptySubscribe = () => () => {};
 
 export default function Home() {
-  const [mounted, setMounted] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState("studio");
+  const mounted = React.useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+  const [activeTab, setActiveTab] = React.useState(() => {
+    if (typeof window === "undefined") return "studio";
+    const saved = localStorage.getItem(ACTIVE_TAB_KEY);
+    return saved && PAGE_TITLES[saved] ? saved : "studio";
+  });
   const [backendOnline, setBackendOnline] = React.useState<boolean | null>(null);
-  const [collapsed, setCollapsed] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  });
   const [mobileOpen, setMobileOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    setCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1");
-    const savedTab = localStorage.getItem(ACTIVE_TAB_KEY);
-    if (savedTab && PAGE_TITLES[savedTab]) {
-      setActiveTab(savedTab);
-    }
-    setMounted(true);
-  }, []);
 
   const handleSelectTab = React.useCallback((id: string) => {
     setActiveTab(id);
@@ -96,7 +99,7 @@ export default function Home() {
       try {
         const res = await fetch(getApiUrl("/api/models"));
         setBackendOnline(res.ok);
-      } catch (_) {
+      } catch {
         setBackendOnline(false);
       }
     }

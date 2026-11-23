@@ -77,7 +77,7 @@ export function FinetuneTab() {
   const [maxSteps, setMaxSteps] = React.useState(30);
   const [loraRank, setLoraRank] = React.useState("16");
   const [learningRate, setLearningRate] = React.useState("1e-4");
-  const [emotionalTuning, setEmotionalTuning] = React.useState(true);
+  const [emotionalTuning] = React.useState(true);
   const [isTraining, setIsTraining] = React.useState(false);
   const [terminalLogs, setTerminalLogs] = React.useState("Ready. Add custom voice clips above or train on existing manifest.");
   const [trainingStatus, setTrainingStatus] = React.useState("Idle");
@@ -112,32 +112,49 @@ export function FinetuneTab() {
       if (data.log) {
         setTerminalLogs(data.log);
       }
-    } catch (_) {}
+    } catch {}
   }, []);
 
   React.useEffect(() => {
-    fetchDataset();
-    pollTrainingStatus();
-    fetch(getApiUrl("/api/voices"))
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data?.voices) return;
-        const voices = Object.values(data.voices).map((v: any) => {
-          const { label, sublabel } = splitVoiceLabel(v.label || "", v.id, v.description);
-          return {
-            value: v.id,
-            label,
-            sublabel,
-          };
-        });
-        setAnchorVoiceOptions(voices);
-        setSpeakerFilterOptions([
-          { value: "all", label: `🇰🇭 All ${voices.length} Speakers`, sublabel: "Load full dataset manifest" },
-          ...voices,
-        ]);
+    let active = true;
+    Promise.all([
+      fetch(getApiUrl("/api/finetune/dataset")).then((r) => (r.ok ? r.json() : null)),
+      fetch(getApiUrl("/api/finetune/status")).then((r) => (r.ok ? r.json() : null)),
+      fetch(getApiUrl("/api/voices")).then((r) => (r.ok ? r.json() : null)),
+    ])
+      .then(([dsRes, statusRes, voicesRes]) => {
+        if (!active) return;
+        if (dsRes?.samples) {
+          const loadedSamples: DatasetSample[] = (dsRes.samples as DatasetSample[]).map((s) => ({
+            ...s,
+            audio_url: getApiUrl(s.audio_url),
+          }));
+          setSamples(loadedSamples);
+        }
+        if (statusRes) {
+          setIsTraining(statusRes.running || false);
+          setTrainingStatus(statusRes.status || "Idle");
+          if (statusRes.log) setTerminalLogs(statusRes.log);
+        }
+        if (voicesRes?.voices) {
+          const voices = Object.values(
+            voicesRes.voices as Record<string, { id: string; label?: string; description?: string }>
+          ).map((v) => {
+            const { label, sublabel } = splitVoiceLabel(v.label || "", v.id, v.description);
+            return { value: v.id, label, sublabel };
+          });
+          setAnchorVoiceOptions(voices);
+          setSpeakerFilterOptions([
+            { value: "all", label: `🇰🇭 All ${voices.length} Speakers`, sublabel: "Load full dataset manifest" },
+            ...voices,
+          ]);
+        }
       })
       .catch(() => {});
-  }, [fetchDataset, pollTrainingStatus]);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!isTraining) return;
@@ -243,7 +260,7 @@ export function FinetuneTab() {
     try {
       await fetch(getApiUrl("/api/finetune/stop"), { method: "POST" });
       setIsTraining(false);
-    } catch (_) {}
+    } catch {}
   };
 
   const togglePlaySample = (index: number, audioUrl: string) => {

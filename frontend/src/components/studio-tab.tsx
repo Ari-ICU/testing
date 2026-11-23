@@ -319,7 +319,7 @@ export function StudioTab() {
             partialAudioUrl: pData.partial_audio_url ? getApiUrl(pData.partial_audio_url) : prev.partialAudioUrl,
           }));
         }
-      } catch (_) {}
+      } catch {}
     }, 350);
 
     try {
@@ -351,7 +351,7 @@ export function StudioTab() {
     abortControllerRef.current?.abort();
     try {
       await fetch(getApiUrl("/api/cancel"), { method: "POST" });
-    } catch (_) {}
+    } catch {}
     setIsGenerating(false);
   };
 
