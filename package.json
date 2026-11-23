@@ -1,0 +1,20 @@
+{
+  "name": "voxcpm-khmer",
+  "version": "2.2.0",
+  "description": "Khmer Text-to-Speech, Voice Cloning & Movie Dubbing Studio",
+  "scripts": {
+    "dev": "./run.sh",
+    "start": "./run.sh",
+    "backend": ".venv/bin/python -m uvicorn api.main:app --host 0.0.0.0 --port 8000",
+    "frontend": "npm run dev --prefix frontend"
+  },
+  "keywords": [
+    "khmer-tts",
+    "voxcpm2",
+    "voice-cloning",
+    "movie-dubbing",
+    "lora"
+  ],
+  "author": "Ari-ICU",
+  "license": "Apache-2.0"
+}

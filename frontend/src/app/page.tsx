@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Disc3, Dna, Flame, Library, Menu } from "lucide-react";
+import { Clapperboard, Disc3, Dna, Flame, Library, Menu } from "lucide-react";
 import { getApiUrl } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { AppSidebar, type SidebarItem } from "@/components/app-sidebar";
 import { StudioTab } from "@/components/studio-tab";
+import { MovieTab } from "@/components/movie-tab";
 import { FinetuneTab } from "@/components/finetune-tab";
 import { HistoryTab } from "@/components/history-tab";
 
@@ -16,6 +17,12 @@ const NAV_ITEMS: SidebarItem[] = [
     label: "Speech Studio",
     description: "Voice cloning & TTS",
     icon: Dna,
+  },
+  {
+    id: "movie",
+    label: "Movie Dubbing",
+    description: "Multi-character cinema dub",
+    icon: Clapperboard,
   },
   {
     id: "finetune",
@@ -35,6 +42,10 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   studio: {
     title: "Voice Cloning & Speech Studio",
     subtitle: "Natural Khmer TTS with zero-shot and ultimate voice cloning",
+  },
+  movie: {
+    title: "Cinema & Movie Dubbing Studio",
+    subtitle: "Multi-character movie script synthesis with cinematic pacing & SRT subtitles",
   },
   finetune: {
     title: "Voice Clone LoRA Fine-Tuning",
@@ -153,6 +164,7 @@ export default function Home() {
               transition={{ duration: 0.18, ease: "easeOut" }}
             >
               {activeTab === "studio" && <StudioTab />}
+              {activeTab === "movie" && <MovieTab />}
               {activeTab === "finetune" && <FinetuneTab />}
               {activeTab === "history" && <HistoryTab />}
             </motion.div>
