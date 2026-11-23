@@ -14,8 +14,11 @@ import {
   Clock,
   Layers,
   Wand2,
-  Sliders,
-  AudioWaveform,
+  Video,
+  FileText,
+  Upload,
+  Volume2,
+  CheckCircle2,
 } from "lucide-react";
 import { getApiUrl } from "@/lib/api";
 import { formatHumanDuration } from "@/lib/utils";
@@ -27,14 +30,16 @@ import { Switch } from "./ui/switch";
 import { Badge } from "./ui/badge";
 import { WaveformPlayer } from "./ui/waveform-player";
 
-interface DialogueLine {
+interface SubtitledDialogueItem {
   id: string;
+  index: number;
+  start_time: number;
+  end_time: number;
   character: string;
   voice: string;
   text: string;
   emotion: string;
   speed: number;
-  pause_after_sec: number;
 }
 
 interface DialogueResultItem {
@@ -65,51 +70,79 @@ export function MovieTab() {
   const [voiceOptions, setVoiceOptions] = React.useState<DropdownOption[]>([]);
   const [isLoadingVoices, setIsLoadingVoices] = React.useState(true);
 
-  const [sceneTitle, setSceneTitle] = React.useState("ឈុតភាពយន្តថ្មី");
-  const [scriptMode, setScriptMode] = React.useState<"lines" | "script">("lines");
+  // Mode: "srt_upload" | "dialogue_list"
+  const [inputMode, setInputMode] = React.useState<"srt_upload" | "dialogue_list">("srt_upload");
 
-  const [scriptText, setScriptText] = React.useState<string>(
-    `[អ្នកនិទាន (cinematic)]: នៅសាលាក្តីក្រុងខៃហ្វុង ថ្ងៃនេះមានរឿងចម្លែកមួយបានកើតឡើង។\n[ទិនហ្វី (comedy)]: ឥឡូវឆាប់ដោះលែងគេទាំងពីរទៅ ឲ្យខ្ញុំធ្វើអីក៏បានដែរ លោកម្ចាស់!\n[ប៉ាវចិន (stern)]: ហ៊ានប្រមាថតុលាការឬ? ឈប់សើចភ្លាម! ឆ្មាំទាំងឡាយ យកកាំបិតក្បាលឆ្កែមក!`
-  );
+  const [sceneTitle, setSceneTitle] = React.useState("ភាពយន្តបញ្ចូលសំឡេងខ្មែរ");
+  const [srtText, setSrtText] = React.useState<string>(`1
+00:00:01,000 --> 00:00:03,800
+[អ្នកនិទាន (cinematic)]: នៅសាលាក្តីក្រុងខៃហ្វុង ថ្ងៃនេះមានរឿងចម្លែកមួយបានកើតឡើង។
 
-  const [lines, setLines] = React.useState<DialogueLine[]>([
+2
+00:00:04,400 --> 00:00:07,200
+[ទិនហ្វី (comedy)]: ឥឡូវឆាប់ដោះលែងគេទាំងពីរទៅ ឲ្យខ្ញុំធ្វើអីក៏បានដែរ លោកម្ចាស់!
+
+3
+00:00:07,800 --> 00:00:11,000
+[ប៉ាវចិន (stern)]: ហ៊ានប្រមាថតុលាការឬ? ឈប់សើចភ្លាម! ឆ្មាំទាំងឡាយ យកកាំបិតក្បាលឆ្កែមក!`);
+
+  const [lines, setLines] = React.useState<SubtitledDialogueItem[]>([
     {
-      id: "l1",
+      id: "line_1",
+      index: 1,
+      start_time: 1.0,
+      end_time: 3.8,
       character: "អ្នកនិទាន",
       voice: "male_narrator",
       text: "នៅសាលាក្តីក្រុងខៃហ្វុង ថ្ងៃនេះមានរឿងចម្លែកមួយបានកើតឡើង។",
       emotion: "cinematic",
       speed: 0.95,
-      pause_after_sec: 0.5,
     },
     {
-      id: "l2",
+      id: "line_2",
+      index: 2,
+      start_time: 4.4,
+      end_time: 7.2,
       character: "ទិនហ្វី",
       voice: "tinfy",
       text: "ឥឡូវឆាប់ដោះលែងគេទាំងពីរទៅ ឲ្យខ្ញុំធ្វើអីក៏បានដែរ លោកម្ចាស់!",
       emotion: "comedy",
       speed: 1.05,
-      pause_after_sec: 0.4,
     },
     {
-      id: "l3",
+      id: "line_3",
+      index: 3,
+      start_time: 7.8,
+      end_time: 11.0,
       character: "ប៉ាវចិន",
       voice: "pao_chin",
       text: "ហ៊ានប្រមាថតុលាការឬ? ឈប់សើចភ្លាម! ឆ្មាំទាំងឡាយ យកកាំបិតក្បាលឆ្កែមក!",
       emotion: "stern",
       speed: 1.0,
-      pause_after_sec: 0.5,
     },
   ]);
 
+  // Video File state
+  const [videoFile, setVideoFile] = React.useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = React.useState<string | null>(null);
+
+  // Audio Mixing state
+  const [mixOriginalAudio, setMixOriginalAudio] = React.useState(true);
+  const [bgVolume, setBgVolume] = React.useState(0.15);
   const [useLora, setUseLora] = React.useState(true);
+
+  // Synthesis output state
   const [isDubbing, setIsDubbing] = React.useState(false);
+  const [dubbedVideoUrl, setDubbedVideoUrl] = React.useState<string | null>(null);
   const [masterAudioUrl, setMasterAudioUrl] = React.useState<string | null>(null);
   const [totalDuration, setTotalDuration] = React.useState<number>(0);
   const [srtSubtitles, setSrtSubtitles] = React.useState<string>("");
   const [resultLines, setResultLines] = React.useState<DialogueResultItem[]>([]);
   const [copiedSrt, setCopiedSrt] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const videoInputRef = React.useRef<HTMLInputElement>(null);
 
   // Fetch real Cambodian voices directly from API
   React.useEffect(() => {
@@ -134,47 +167,80 @@ export function MovieTab() {
       });
   }, []);
 
-  const handleParseScript = async (rawScript?: string) => {
-    const textToParse = rawScript !== undefined ? rawScript : scriptText;
-    if (!textToParse.trim()) return;
+  // Handle Video file selection
+  const handleSelectVideo = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setVideoFile(file);
+      const url = URL.createObjectURL(file);
+      setVideoPreviewUrl(url);
+    }
+  };
+
+  // Handle Subtitle (.srt) file upload
+  const handleSelectSrtFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    setSrtText(text);
+    handleParseSrtString(text);
+  };
+
+  const handleParseSrtString = async (rawSrt?: string) => {
+    const content = rawSrt !== undefined ? rawSrt : srtText;
+    if (!content.trim()) return;
+
     try {
-      const res = await fetch(getApiUrl("/api/movie/parse-script"), {
+      const formData = new FormData();
+      formData.append("srt_text", content);
+
+      const res = await fetch(getApiUrl("/api/movie/parse-srt"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ script_text: textToParse }),
+        body: formData,
       });
-      if (!res.ok) throw new Error("Failed to parse script");
+
+      if (!res.ok) throw new Error("Failed to parse SRT subtitles");
       const data = await res.json();
       if (data.lines && data.lines.length > 0) {
         setLines(
           data.lines.map((l: any, i: number) => ({
             id: `line_${Date.now()}_${i}`,
-            character: l.character,
-            voice: l.voice,
+            index: l.index || i + 1,
+            start_time: l.start_time,
+            end_time: l.end_time,
+            character: l.character || "អ្នកនិទាន",
+            voice: l.voice || "male_narrator",
             text: l.text,
-            emotion: l.emotion,
+            emotion: l.emotion || "neutral",
             speed: l.speed || 1.0,
-            pause_after_sec: l.pause_after_sec || 0.4,
           }))
         );
-        setScriptMode("lines");
+        setInputMode("dialogue_list");
       }
     } catch (err: any) {
       console.error(err);
+      setErrorMessage(err.message || "Could not parse SRT subtitle file.");
     }
   };
 
   const handleAddLine = () => {
+    const last = lines[lines.length - 1];
+    const newStart = last ? Number((last.end_time + 0.5).toFixed(1)) : 0.0;
+    const newEnd = Number((newStart + 3.0).toFixed(1));
+
     setLines((prev) => [
       ...prev,
       {
         id: `line_${Date.now()}`,
+        index: prev.length + 1,
+        start_time: newStart,
+        end_time: newEnd,
         character: "តួអង្គ",
         voice: voiceOptions[0]?.value || "male",
         text: "",
         emotion: "neutral",
         speed: 1.0,
-        pause_after_sec: 0.4,
       },
     ]);
   };
@@ -183,34 +249,37 @@ export function MovieTab() {
     setLines((prev) => prev.filter((l) => l.id !== id));
   };
 
-  const handleUpdateLine = (id: string, updates: Partial<DialogueLine>) => {
+  const handleUpdateLine = (id: string, updates: Partial<SubtitledDialogueItem>) => {
     setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
   };
 
-  const handleDubScene = async () => {
+  // Run Movie / Video Dubbing
+  const handleDubVideo = async () => {
     setIsDubbing(true);
     setErrorMessage(null);
-    try {
-      const payload: any = {
-        title: sceneTitle || "Khmer Movie Scene",
-        model_id: "voxcpm2_khmer",
-        use_lora: useLora,
-      };
+    setDubbedVideoUrl(null);
 
-      if (scriptMode === "script" && scriptText.trim()) {
-        payload.script_text = scriptText.trim();
-      } else {
-        const validLines = lines.filter((l) => l.text.trim().length > 0);
-        if (validLines.length === 0) {
-          throw new Error("Please enter dialogue text for at least one character line.");
-        }
-        payload.lines = validLines;
+    try {
+      const validLines = lines.filter((l) => l.text.trim().length > 0);
+      if (validLines.length === 0) {
+        throw new Error("Please enter or import at least one Khmer subtitle line.");
       }
 
-      const res = await fetch(getApiUrl("/api/movie/dub"), {
+      const formData = new FormData();
+      formData.append("title", sceneTitle || "Khmer Movie Scene");
+      formData.append("lines_json", JSON.stringify(validLines));
+      formData.append("model_id", "voxcpm2_khmer");
+      formData.append("use_lora", useLora ? "true" : "false");
+      formData.append("mix_original_audio", mixOriginalAudio ? "true" : "false");
+      formData.append("bg_volume", String(bgVolume));
+
+      if (videoFile) {
+        formData.append("video", videoFile);
+      }
+
+      const res = await fetch(getApiUrl("/api/movie/dub-video"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -220,6 +289,7 @@ export function MovieTab() {
 
       const data = await res.json();
       setMasterAudioUrl(data.full_audio_url);
+      setDubbedVideoUrl(data.video_url || null);
       setTotalDuration(data.total_duration_sec);
       setSrtSubtitles(data.srt_subtitles);
       setResultLines(data.lines || []);
@@ -250,24 +320,24 @@ export function MovieTab() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Studio Header Card */}
+      {/* Studio Banner */}
       <Card className="border-slate-800 bg-[#070c18] shadow-sm">
         <CardContent className="p-5 md:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <Badge variant="emerald" className="text-[11px] font-medium">
-                  <Clapperboard className="mr-1 h-3.5 w-3.5" /> Movie &amp; Drama Studio
+                  <Clapperboard className="mr-1 h-3.5 w-3.5" /> Movie &amp; Video Dubbing Studio
                 </Badge>
                 <Badge variant="outline" className="border-slate-800 text-slate-400 text-[11px]">
-                  48kHz Master Output
+                  SRT + Video Auto-Sync
                 </Badge>
               </div>
               <h2 className="text-xl font-bold tracking-tight text-white md:text-2xl font-sans">
-                បញ្ចូលសំឡេងភាពយន្ត (Multi-Character Movie Dubbing)
+                បញ្ចូលសំឡេងភាពយន្តតាម Subtitle &amp; Video (Text-to-Voice Dubbing)
               </h2>
               <p className="text-xs md:text-sm text-slate-400 max-w-2xl">
-                បញ្ចូលសំឡេងតួអង្គច្រើនក្នុងឈុតតែមួយ ផ្គុំជាបទសំឡេង Master 48kHz ដោយស្វ័យប្រវត្តិ រួមទាំងបង្កើត Subtitle SRT ស្របតាមពេលវេលានិយាយពិតប្រាកដ។
+                បញ្ចូល File Subtitle (SRT) និង Video ដើម្បីសំយោគសំឡេងខ្មែរតាមពេលវេលាជាក់លាក់ (Exact Timecodes) រួចបញ្ចូលសំឡេងចូលក្នុងវីដេអូដោយស្វ័យប្រវត្តិ។
               </p>
             </div>
 
@@ -285,99 +355,207 @@ export function MovieTab() {
 
       {/* Main Workspace Layout */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left Column: Script / Dialogue Line Builder (7 cols) */}
+        {/* Left Column: Subtitle & Video Inputs (7 cols) */}
         <div className="space-y-4 lg:col-span-7">
+          {/* 1. Upload Video & Subtitle Card */}
+          <Card className="border-slate-800 bg-[#070c18]">
+            <CardHeader className="pb-3 border-b border-slate-800/80">
+              <CardTitle className="text-base text-slate-100 flex items-center gap-2">
+                <Upload className="h-4 w-4 text-emerald-400" />
+                បញ្ចូល File Subtitle (SRT) &amp; File វីដេអូ (Video)
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-400">
+                Upload File Subtitle និងវីដេអូ ដើម្បីផ្គុំសំឡេងខ្មែរចូលក្នុងវីដេអូ
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="pt-4 space-y-4">
+              {/* Dual Upload Area: SRT + Video */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* SRT Subtitle Upload */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".srt,.vtt,.txt"
+                  onChange={handleSelectSrtFile}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 bg-[#090f1d] p-4 text-center hover:border-emerald-500/60 transition-colors cursor-pointer group"
+                >
+                  <FileText className="h-6 w-6 text-emerald-400 mb-1.5 group-hover:scale-110 transition-transform" />
+                  <span className="text-xs font-semibold text-slate-200">
+                    {lines.length > 0 ? `Loaded ${lines.length} Subtitles` : "Upload Subtitle (.SRT)"}
+                  </span>
+                  <span className="text-[11px] text-slate-500 mt-0.5">ចុចដើម្បីជ្រើសរើស File .srt</span>
+                </button>
+
+                {/* Video Upload */}
+                <input
+                  type="file"
+                  ref={videoInputRef}
+                  accept="video/mp4,video/quicktime,video/x-matroska,.mp4,.mov,.mkv"
+                  onChange={handleSelectVideo}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => videoInputRef.current?.click()}
+                  className={`flex flex-col items-center justify-center rounded-xl border border-dashed p-4 text-center transition-colors cursor-pointer group ${
+                    videoFile
+                      ? "border-emerald-500/50 bg-emerald-500/5"
+                      : "border-slate-800 bg-[#090f1d] hover:border-cyan-500/60"
+                  }`}
+                >
+                  <Video className={`h-6 w-6 mb-1.5 group-hover:scale-110 transition-transform ${
+                    videoFile ? "text-emerald-400" : "text-cyan-400"
+                  }`} />
+                  <span className="text-xs font-semibold text-slate-200 truncate max-w-[200px]">
+                    {videoFile ? videoFile.name : "Upload Movie Video (.MP4)"}
+                  </span>
+                  <span className="text-[11px] text-slate-500 mt-0.5">
+                    {videoFile ? `${(videoFile.size / (1024 * 1024)).toFixed(1)} MB` : "ចុចដើម្បីជ្រើសរើស Video"}
+                  </span>
+                </button>
+              </div>
+
+              {/* Video Preview if selected */}
+              {videoPreviewUrl && (
+                <div className="rounded-xl border border-slate-800 bg-[#090f1d] p-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-300">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Film className="h-3.5 w-3.5 text-cyan-400" />
+                      Original Video Preview: {videoFile?.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVideoFile(null);
+                        setVideoPreviewUrl(null);
+                      }}
+                      className="text-xs text-rose-400 hover:text-rose-300 cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <video src={videoPreviewUrl} controls className="w-full max-h-56 rounded-lg bg-black" />
+                </div>
+              )}
+
+              {/* Audio Mixing Options */}
+              <div className="rounded-xl border border-slate-800 bg-[#090f1d] p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                      <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
+                      រក្សាសំឡេងផ្ទៃខាងក្រោយវីដេអូដើម (Keep Original Music/SFX)
+                    </span>
+                    <p className="text-[11px] text-slate-500">
+                      រក្សាសំឡេងតន្ត្រី និងសម្លេង Effect ដើមរបស់រឿងក្នុងកម្រិតទាប (15%) ហើយបញ្ចូលសំឡេងខ្មែរពីលើ
+                    </p>
+                  </div>
+                  <Switch checked={mixOriginalAudio} onCheckedChange={setMixOriginalAudio} id="mix-audio" />
+                </div>
+
+                {mixOriginalAudio && (
+                  <div className="space-y-1.5 pt-2 border-t border-slate-800/60">
+                    <div className="flex justify-between text-[11px] text-slate-400">
+                      <span>កម្រិតសំឡេងដើម (Background SFX Volume)</span>
+                      <span className="font-mono text-emerald-400">{Math.round(bgVolume * 100)}%</span>
+                    </div>
+                    <Slider
+                      value={[bgVolume]}
+                      min={0.05}
+                      max={0.35}
+                      step={0.01}
+                      onValueChange={([val]) => setBgVolume(val)}
+                    />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 2. Subtitle Timeline & Dialogue Cards */}
           <Card className="border-slate-800 bg-[#070c18]">
             <CardHeader className="pb-3 border-b border-slate-800/80">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   <CardTitle className="text-base text-slate-100 flex items-center gap-2">
-                    <Film className="h-4 w-4 text-emerald-400" />
-                    តារាងសន្ទនាភាពយន្ត (Dialogue Lines)
+                    <Clock className="h-4 w-4 text-emerald-400" />
+                    តារាង Subtitle តាមពេលវេលា ({lines.length} Lines)
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-400">
-                    កំណត់តួអង្គ សំឡេង អារម្មណ៍ និងសម្ដីសន្ទនានីមួយៗ
+                    កំណត់តួអង្គ សំឡេង និង Timecodes នីមួយៗ
                   </CardDescription>
                 </div>
 
                 <div className="flex items-center gap-1.5 self-start sm:self-auto rounded-lg border border-slate-800 bg-[#0a101f] p-1">
                   <button
                     type="button"
-                    onClick={() => setScriptMode("lines")}
+                    onClick={() => setInputMode("dialogue_list")}
                     className={`px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
-                      scriptMode === "lines"
+                      inputMode === "dialogue_list"
                         ? "bg-slate-800 text-white shadow-sm"
                         : "text-slate-400 hover:text-slate-200"
                     }`}
                   >
-                    Dialogue Lines
+                    Dialogue Cards
                   </button>
                   <button
                     type="button"
-                    onClick={() => setScriptMode("script")}
+                    onClick={() => setInputMode("srt_upload")}
                     className={`px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
-                      scriptMode === "script"
+                      inputMode === "srt_upload"
                         ? "bg-slate-800 text-white shadow-sm"
                         : "text-slate-400 hover:text-slate-200"
                     }`}
                   >
-                    Raw Script Text
+                    SRT Text Editor
                   </button>
                 </div>
               </div>
             </CardHeader>
 
             <CardContent className="pt-4 space-y-4">
-              {/* Scene Title Input */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-300">ចំណងជើងឈុត (Scene Title)</label>
-                <input
-                  type="text"
-                  value={sceneTitle}
-                  onChange={(e) => setSceneTitle(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-[#090f1d] px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
-                  placeholder="ឧ. ឈុតទីមួយ៖ ជួបគ្នានៅសាលាក្តី..."
-                />
-              </div>
-
-              {scriptMode === "script" ? (
-                /* Raw Script Editor */
+              {inputMode === "srt_upload" ? (
+                /* Raw SRT Editor */
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>
-                      ទម្រង់សរសេរ៖ <code className="text-emerald-400 font-mono">[ឈ្មោះតួ (emotion)]: សម្ដីសន្ទនា</code>
-                    </span>
+                    <span>អាច Paste អត្ថបទ Subtitle SRT ដោយផ្ទាល់នៅទីនេះ</span>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleParseScript()}
+                      onClick={() => handleParseSrtString()}
                       className="h-7 text-xs text-emerald-400 hover:text-emerald-300 gap-1.5"
                     >
                       <Wand2 className="h-3.5 w-3.5" />
-                      Convert to Dialogue Cards
+                      Parse SRT into Cards
                     </Button>
                   </div>
                   <textarea
-                    value={scriptText}
-                    onChange={(e) => setScriptText(e.target.value)}
+                    value={srtText}
+                    onChange={(e) => setSrtText(e.target.value)}
                     rows={12}
-                    className="w-full rounded-xl border border-slate-800 bg-[#090f1d] p-4 font-mono text-sm leading-relaxed text-slate-100 placeholder-slate-600 focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/40 resize-y"
-                    placeholder="[អ្នកនិទាន (cinematic)]: ខ្យល់បក់ត្រជាក់...\n[ទិនហ្វី (comedy)]: ឥឡូវឆាប់ដោះលែងគេទៅ!\n[ប៉ាវចិន (stern)]: ឈប់សើចភ្លាម!"
+                    className="w-full rounded-xl border border-slate-800 bg-[#090f1d] p-4 font-mono text-xs leading-relaxed text-slate-100 placeholder-slate-600 focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/40 resize-y"
+                    placeholder="1\n00:00:01,000 --> 00:00:04,000\n[ទិនហ្វី (comedy)]: ឥឡូវឆាប់ដោះលែងគេទៅ!"
                   />
                 </div>
               ) : (
-                /* Visual Dialogue Cards */
+                /* Dialogue Line Cards with Timestamps */
                 <div className="space-y-3">
                   {lines.map((line, idx) => (
                     <div
                       key={line.id}
-                      className="rounded-xl border border-slate-800 bg-[#090f1d] p-3.5 space-y-3 transition-colors hover:border-slate-700"
+                      className="rounded-xl border border-slate-800 bg-[#090f1d] p-3.5 space-y-2.5 transition-colors hover:border-slate-700"
                     >
-                      {/* Top Row: Line Number + Character Name + Voice + Emotion + Delete */}
-                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-12 sm:items-center">
+                      {/* Top Row: Index + Timecode + Character + Voice + Emotion + Delete */}
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-12 sm:items-center">
                         <div className="flex items-center gap-2 sm:col-span-4">
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[11px] font-bold text-slate-300">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-slate-300">
                             {idx + 1}
                           </span>
                           <input
@@ -394,7 +572,7 @@ export function MovieTab() {
                             value={line.voice}
                             options={voiceOptions}
                             onChange={(val) => handleUpdateLine(line.id, { voice: val })}
-                            placeholder={isLoadingVoices ? "Loading voices..." : "Select Voice"}
+                            placeholder={isLoadingVoices ? "Loading voices..." : "Voice"}
                           />
                         </div>
 
@@ -420,43 +598,48 @@ export function MovieTab() {
                         </div>
                       </div>
 
-                      {/* Dialogue Khmer Text */}
+                      {/* Khmer Dialogue Text */}
                       <textarea
                         value={line.text}
                         onChange={(e) => handleUpdateLine(line.id, { text: e.target.value })}
                         rows={2}
-                        className="w-full rounded-lg border border-slate-800 bg-[#070c18] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:border-emerald-500/60 focus:outline-none font-sans leading-relaxed resize-y"
-                        placeholder="វាយបញ្ចូលសម្ដីសន្ទនាជាភាសាខ្មែរ..."
+                        className="w-full rounded-lg border border-slate-800 bg-[#070c18] px-3.5 py-2 text-sm text-slate-100 placeholder-slate-600 focus:border-emerald-500/60 focus:outline-none font-sans leading-relaxed resize-y"
+                        placeholder="អត្ថបទសន្ទនាជាភាសាខ្មែរ..."
                       />
 
-                      {/* Sliders: Speech Speed & Pause */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-800/60">
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] text-slate-400">
-                            <span>ល្បឿននិយាយ (Speed)</span>
-                            <span className="font-mono text-emerald-400">{line.speed.toFixed(2)}x</span>
-                          </div>
-                          <Slider
-                            value={[line.speed]}
-                            min={0.8}
-                            max={1.25}
-                            step={0.02}
-                            onValueChange={([val]) => handleUpdateLine(line.id, { speed: val })}
+                      {/* Subtitle Timestamp Controls */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-800/60 text-xs text-slate-400">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-3.5 w-3.5 text-emerald-400" />
+                          <span>Start:</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={line.start_time}
+                            onChange={(e) => handleUpdateLine(line.id, { start_time: parseFloat(e.target.value) || 0 })}
+                            className="w-16 rounded border border-slate-800 bg-[#070c18] px-1.5 py-0.5 text-center font-mono text-xs text-emerald-400 focus:outline-none"
                           />
+                          <span>s</span>
+                          <span className="text-slate-600">→</span>
+                          <span>End:</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={line.end_time}
+                            onChange={(e) => handleUpdateLine(line.id, { end_time: parseFloat(e.target.value) || 0 })}
+                            className="w-16 rounded border border-slate-800 bg-[#070c18] px-1.5 py-0.5 text-center font-mono text-xs text-cyan-400 focus:outline-none"
+                          />
+                          <span>s</span>
+                          <span className="text-slate-500 text-[11px]">
+                            ({(line.end_time - line.start_time).toFixed(1)}s slot)
+                          </span>
                         </div>
 
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] text-slate-400">
-                            <span>គម្លាតដកដង្ហើម (Pause After)</span>
-                            <span className="font-mono text-cyan-400">{line.pause_after_sec.toFixed(2)}s</span>
-                          </div>
-                          <Slider
-                            value={[line.pause_after_sec]}
-                            min={0.1}
-                            max={1.5}
-                            step={0.05}
-                            onValueChange={([val]) => handleUpdateLine(line.id, { pause_after_sec: val })}
-                          />
+                        <div className="flex items-center gap-2">
+                          <span>Speed:</span>
+                          <span className="font-mono text-white text-xs">{line.speed.toFixed(2)}x</span>
                         </div>
                       </div>
                     </div>
@@ -469,7 +652,7 @@ export function MovieTab() {
                     onClick={handleAddLine}
                     className="w-full border-dashed border-slate-800 bg-transparent text-slate-300 hover:border-emerald-500/60 hover:text-emerald-400 py-4"
                   >
-                    <Plus className="mr-2 h-4 w-4" /> បន្ថែមប្រយោគសន្ទនា (Add Dialogue Line)
+                    <Plus className="mr-2 h-4 w-4" /> បន្ថែមបន្ទាត់សន្ទនា (Add Dialogue Line)
                   </Button>
                 </div>
               )}
@@ -480,22 +663,22 @@ export function MovieTab() {
                 </div>
               )}
 
-              {/* Action Button */}
+              {/* Dub Button */}
               <Button
                 type="button"
-                onClick={handleDubScene}
+                onClick={handleDubVideo}
                 disabled={isDubbing}
                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-6 text-base shadow-md shadow-emerald-950/40 gap-2 cursor-pointer"
               >
                 {isDubbing ? (
                   <>
                     <RefreshCw className="h-5 w-5 animate-spin" />
-                    កំពុងសំយោគបញ្ចូលសំឡេងភាពយន្ត (Dubbing Movie Scene)...
+                    កំពុងសំយោគសំឡេង និងផ្គុំចូលវីដេអូ (Dubbing Video &amp; Subtitles)...
                   </>
                 ) : (
                   <>
                     <Clapperboard className="h-5 w-5" />
-                    🎬 ចាប់ផ្ដើមបញ្ចូលសំឡេងភាពយន្ត (Dub Movie Scene)
+                    🎬 ចាប់ផ្ដើមបញ្ចូលសំឡេងភាពយន្ត (Dub Video &amp; Subtitles)
                   </>
                 )}
               </Button>
@@ -503,15 +686,64 @@ export function MovieTab() {
           </Card>
         </div>
 
-        {/* Right Column: Master Output, SRT Subtitles, Timeline (5 cols) */}
+        {/* Right Column: Output Video Player, Master WAV, & SRT (5 cols) */}
         <div className="space-y-4 lg:col-span-5">
-          {/* Master Scene Player Card */}
+          {/* Dubbed Video Player Card (If video generated) */}
           <Card className="border-slate-800 bg-[#070c18]">
             <CardHeader className="pb-3 border-b border-slate-800/80">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base text-slate-100 flex items-center gap-2">
-                  <AudioWaveform className="h-4 w-4 text-emerald-400" />
-                  សំឡេងភាពយន្តពេញលេញ (Master Track)
+                  <Video className="h-4 w-4 text-emerald-400" />
+                  វីដេអូដែលបានបញ្ចូលសំឡេងរួច (Dubbed Video)
+                </CardTitle>
+                {dubbedVideoUrl && (
+                  <Badge variant="emerald" className="font-mono text-xs py-0">
+                    Ready
+                  </Badge>
+                )}
+              </div>
+              <CardDescription className="text-xs text-slate-400">
+                វីដេអូដែលបានបញ្ចូលសំឡេងខ្មែរស្របតាម Subtitle យ៉ាងសុក្រិត
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="pt-4 space-y-3">
+              {dubbedVideoUrl ? (
+                <div className="space-y-3">
+                  <video
+                    src={getApiUrl(dubbedVideoUrl)}
+                    controls
+                    className="w-full rounded-xl bg-black max-h-72 shadow-md"
+                  />
+                  <a
+                    href={getApiUrl(dubbedVideoUrl)}
+                    download={`${sceneTitle.replace(/[^\w\u1780-\u17FF]/g, "_") || "dubbed_movie"}.mp4`}
+                    className="block"
+                  >
+                    <Button variant="emerald" size="sm" className="w-full gap-2 font-semibold">
+                      <Download className="h-4 w-4" /> Download Dubbed Video (MP4)
+                    </Button>
+                  </a>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 bg-[#090f1d] p-7 text-center text-slate-500">
+                  <Video className="h-9 w-9 text-slate-700 mb-2" />
+                  <p className="text-sm font-medium text-slate-300">មិនទាន់មានវីដេអូនៅឡើយទេ</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Upload file វីដេអូ (.mp4) រួចចុច Dubbing ដើម្បីទាញយកវីដេអូជាភាសាខ្មែរ
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Master 48kHz Audio Track */}
+          <Card className="border-slate-800 bg-[#070c18]">
+            <CardHeader className="pb-3 border-b border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base text-slate-100 flex items-center gap-2">
+                  <Play className="h-4 w-4 text-emerald-400" />
+                  សំឡេង Master Track (48kHz WAV)
                 </CardTitle>
                 {totalDuration > 0 && (
                   <Badge variant="emerald" className="font-mono text-xs py-0">
@@ -519,42 +751,35 @@ export function MovieTab() {
                   </Badge>
                 )}
               </div>
-              <CardDescription className="text-xs text-slate-400">
-                សំឡេង 48kHz Master ដែលបានផ្គុំគ្រប់តួអង្គរួចរាល់
-              </CardDescription>
             </CardHeader>
 
             <CardContent className="pt-4">
               {masterAudioUrl ? (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <WaveformPlayer
                     audioUrl={getApiUrl(masterAudioUrl)}
                     title={sceneTitle}
-                    subtitle={`48kHz Master Output • ${resultLines.length} Dialogue Lines`}
+                    subtitle={`48kHz Studio Quality • ${resultLines.length} Subtitles`}
                   />
                   <a
                     href={getApiUrl(masterAudioUrl)}
-                    download={`${sceneTitle.replace(/[^\w\u1780-\u17FF]/g, "_") || "movie_scene"}.wav`}
+                    download={`${sceneTitle.replace(/[^\w\u1780-\u17FF]/g, "_") || "movie_audio"}.wav`}
                     className="block"
                   >
                     <Button variant="outline" size="sm" className="w-full border-slate-800 hover:bg-slate-800 text-slate-200">
-                      <Download className="mr-2 h-4 w-4" /> Download Scene Audio (WAV)
+                      <Download className="mr-2 h-4 w-4" /> Download Master Audio (WAV)
                     </Button>
                   </a>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 bg-[#090f1d] p-8 text-center text-slate-500">
-                  <Clapperboard className="h-10 w-10 text-slate-700 mb-2" />
-                  <p className="text-sm font-medium text-slate-300">មិនទាន់មានសំឡេងភាពយន្តនៅឡើយទេ</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    ចុចប៊ូតុង "🎬 ចាប់ផ្ដើមបញ្ចូលសំឡេងភាពយន្ត" ដើម្បីបង្កើត Master Audio
-                  </p>
+                <div className="rounded-xl border border-dashed border-slate-800 bg-[#090f1d] p-6 text-center text-xs text-slate-600">
+                  សំឡេង Master WAV នឹងបង្ហាញនៅទីនេះក្រោយពេលសំយោគរួចរាល់
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* SRT Subtitle Card */}
+          {/* Synchronized SRT Subtitles */}
           <Card className="border-slate-800 bg-[#070c18]">
             <CardHeader className="pb-3 border-b border-slate-800/80">
               <div className="flex items-center justify-between">
@@ -582,28 +807,28 @@ export function MovieTab() {
 
             <CardContent className="pt-4">
               {srtSubtitles ? (
-                <pre className="max-h-56 overflow-y-auto rounded-xl border border-slate-800 bg-[#090f1d] p-3.5 font-mono text-xs leading-relaxed text-slate-300">
+                <pre className="max-h-52 overflow-y-auto rounded-xl border border-slate-800 bg-[#090f1d] p-3.5 font-mono text-xs leading-relaxed text-slate-300">
                   {srtSubtitles}
                 </pre>
               ) : (
                 <div className="rounded-xl border border-dashed border-slate-800 bg-[#090f1d] p-6 text-center text-xs text-slate-600">
-                  Subtitle SRT នឹងត្រូវបានបង្កើតដោយស្វ័យប្រវត្តិកំឡុងពេល Dubbing
+                  Subtitle SRT នឹងត្រូវបាន Export ដោយស្វ័យប្រវត្តិកំឡុងពេល Dubbing
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Dialogue Lines Audition Table */}
+          {/* Individual Dialogue Audition Lines */}
           {resultLines.length > 0 && (
             <Card className="border-slate-800 bg-[#070c18]">
               <CardHeader className="pb-3 border-b border-slate-800/80">
                 <CardTitle className="text-sm font-semibold text-slate-200 flex items-center gap-2">
                   <Layers className="h-4 w-4 text-emerald-400" />
-                  បន្ទាត់សន្ទនាតាមលំដាប់ (Timeline Lines)
+                  ស្ដាប់សំឡេងតាមបន្ទាត់ Subtitle នីមួយៗ ({resultLines.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-4">
-                <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+                <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
                   {resultLines.map((item) => (
                     <div
                       key={item.line_index}

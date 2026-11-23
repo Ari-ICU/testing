@@ -12,10 +12,12 @@ from .movie import (
     MovieDialogueResultItem,
     MovieDubRequest,
     MovieDubResponse,
-    MoviePresetItem,
-    MoviePresetsResponse,
     ScriptParseRequest,
     ScriptParseResponse,
+    SrtParseRequest,
+    SrtParseResponse,
+    SubtitledLine,
+    VideoDubResponse,
 )
 from .synthesis import (
     NormalizeRequest,
@@ -40,7 +42,9 @@ __all__ = [
     "MovieDubResponse",
     "ScriptParseRequest",
     "ScriptParseResponse",
-    "MoviePresetItem",
-    "MoviePresetsResponse",
+    "SubtitledLine",
+    "SrtParseRequest",
+    "SrtParseResponse",
+    "VideoDubResponse",
 ]
 

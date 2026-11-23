@@ -15,6 +15,17 @@ class MovieDialogueLine(BaseModel):
     pause_after_sec: float = Field(default=0.4, ge=0.0, le=3.0, description="Cinematic pause before next character line")
 
 
+class SubtitledLine(BaseModel):
+    index: int = Field(default=1, description="Subtitle sequence index")
+    start_time: float = Field(default=0.0, ge=0.0, description="Start timestamp in seconds")
+    end_time: float = Field(default=3.0, ge=0.0, description="End timestamp in seconds")
+    character: str = Field(default="អ្នកនិទាន", description="Character name")
+    voice: str = Field(default="male_narrator", description="Voice profile ID")
+    text: str = Field(..., description="Khmer subtitle text")
+    emotion: str = Field(default="neutral", description="Emotion/speaking style")
+    speed: float = Field(default=1.0, ge=0.7, le=1.3, description="Speech speed")
+
+
 class MovieDubRequest(BaseModel):
     title: str = Field(default="Khmer Movie Scene", description="Scene or film title")
     lines: list[MovieDialogueLine] = Field(default_factory=list, description="Ordered dialogue lines")
@@ -51,13 +62,20 @@ class ScriptParseResponse(BaseModel):
     lines: list[MovieDialogueLine]
 
 
-class MoviePresetItem(BaseModel):
-    id: str
+class SrtParseRequest(BaseModel):
+    srt_content: str = Field(..., description="Standard SRT subtitle text with timestamps")
+
+
+class SrtParseResponse(BaseModel):
+    lines: list[SubtitledLine]
+    total_lines: int
+    total_duration_sec: float
+
+
+class VideoDubResponse(BaseModel):
     title: str
-    genre: str
-    description: str
-    script_text: str
-
-
-class MoviePresetsResponse(BaseModel):
-    presets: list[MoviePresetItem]
+    video_url: Optional[str] = None
+    full_audio_url: str
+    total_duration_sec: float
+    srt_subtitles: str
+    lines: list[MovieDialogueResultItem]

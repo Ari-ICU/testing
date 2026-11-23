@@ -1,22 +1,26 @@
-"""Movie & Drama Dialogue Dubbing API Router.
+"""Movie & Video Dialogue Dubbing API Router.
 
 Features:
 - Multi-character Cambodian movie dialogue synthesis
-- Script parsing ([Character (emotion)]: dialogue)
-- Automatic dialogue timeline generation with timestamps
-- SRT subtitle generation for video editors (Premiere, CapCut, DaVinci)
-- Master 48kHz audio stitching with cinematic character pause transitions
+- SRT subtitle parsing and timecode alignment
+- Video multiplexing with ffmpeg (merging dubbed Khmer voice into video)
+- Background audio preservation (e.g. 15% original SFX/BGM)
+- SRT subtitle export synchronized to video timeline
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 import re
+import shutil
+import subprocess
+import tempfile
 import uuid
-from typing import Any
+from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 import numpy as np
 import soundfile as sf
 
@@ -27,10 +31,12 @@ from api.schemas.movie import (
     MovieDialogueResultItem,
     MovieDubRequest,
     MovieDubResponse,
-    MoviePresetItem,
-    MoviePresetsResponse,
     ScriptParseRequest,
     ScriptParseResponse,
+    SrtParseRequest,
+    SrtParseResponse,
+    SubtitledLine,
+    VideoDubResponse,
 )
 from inference.engines import GenerationCancelledError, clear_cancel, is_cancelled, load_voice_profiles
 from preprocessing.khmer_normalizer import normalize_khmer_text
@@ -102,40 +108,114 @@ EMOTION_TAG_MAP: dict[str, str] = {
     "neutral": "neutral",
 }
 
-DEFAULT_MOVIE_PRESETS: list[MoviePresetItem] = [
-    MoviePresetItem(
-        id="tinfy_vs_pao_chin",
-        title="🎭 ទិនហ្វី ប៉ះ ប៉ាវចិន (Comedy & Courtroom Drama)",
-        genre="Comedy / Drama",
-        description="Classic comedy duel between Tinfy and Judge Bao in courtroom setting",
-        script_text="""[អ្នកនិទាន (cinematic)]: នៅសាលាក្តីក្រុងខៃហ្វុង ថ្ងៃនេះមានរឿងចម្លែកមួយបានកើតឡើង។
-[ទិនហ្វី (comedy)]: ឥឡូវឆាប់ដោះលែងគេទាំងពីរទៅ ឲ្យខ្ញុំធ្វើអីក៏បានដែរ លោកម្ចាស់! ហិហិ!
-[ប៉ាវចិន (stern)]: ហ៊ានប្រមាថតុលាការឬ? ឈប់សើចភ្លាម! ឆ្មាំទាំងឡាយ យកកាំបិតក្បាលឆ្កែមក!
-[ទិនហ្វី (comedy)]: អូយ! កុំអីលោកបង! ខ្ញុំគ្រាន់តែនិយាយលេងសើចសោះហ្នឹង!
-[ប៉ាវចិន (stern)]: នៅចំពោះមុខច្បាប់ គ្មានការលេងសើចឡើយ!""",
-    ),
-    MoviePresetItem(
-        id="ancient_warrior_battle",
-        title="⚔️ សង្គ្រាមមេទ័ពបុរាណ (Ancient Warrior Action)",
-        genre="Historical Action",
-        description="Intense battlefield confrontation between heroic commanders",
-        script_text="""[អ្នកនិទាន (cinematic)]: ខ្យល់បក់បោកយ៉ាងខ្លាំងនៅលើវាលសមរភូមិ មុនពេលព្រះអាទិត្យរះ។
-[ប៉ាវចិន (action)]: ទាហានទាំងអស់! លើកខែលការពារ និងត្រៀមវាយលុក!
-[តារា (action)]: ពួកយើងមិនថយក្រោយជាដាច់ខាត! ដើម្បីទឹកដី និងប្រជាជន!
-[សុភា (sad)]: សូមបងប្រយ័ត្នខ្លួនផង ខ្ញុំនឹងរង់ចាំការវិលត្រឡប់របស់បង!
-[តារា (romantic)]: កុំបារម្ភអីអូន បងសន្យានឹងវិលត្រឡប់មកវិញដោយជ័យជម្នះ!""",
-    ),
-    MoviePresetItem(
-        id="cinematic_trailer",
-        title="🎬 ស្រមោលរាត្រី (Cinematic Suspense Trailer)",
-        genre="Thriller / Mystery",
-        description="Dramatic movie trailer with suspenseful narration and tense dialogues",
-        script_text="""[អ្នកនិទាន (cinematic)]: នៅក្នុងទីក្រុងដ៏អាថ៌កំបាំងមួយ... គ្មានអ្នកណាដឹងថាមានរឿងអ្វីនឹងកើតឡើងនោះទេ។
-[ចន្ធូ (suspense)]: តើអ្នកណា... អ្នកណានៅទីនោះ? ចេញមកភ្លាម!
-[ទិនហ្វី (comedy)]: គឺខ្ញុំតើ! កុំភ័យអី កុំទាន់អាលស្រែក ខ្ញុំទើបតែដើរវង្វេងផ្លូវទេ!
-[អ្នកនិទាន (cinematic)]: ភាពយន្តខ្មែរថ្មី នឹងមកដល់ឆាប់ៗនេះ នៅគ្រប់រោងភាពយន្ត!""",
-    ),
-]
+
+def parse_timestamp_to_seconds(ts: str) -> float:
+    """Convert '00:01:23,400' or '01:23.400' to seconds."""
+    ts = ts.strip().replace(",", ".")
+    parts = ts.split(":")
+    if len(parts) == 3:
+        h, m, s = parts
+        return float(h) * 3600.0 + float(m) * 60.0 + float(s)
+    elif len(parts) == 2:
+        m, s = parts
+        return float(m) * 60.0 + float(s)
+    try:
+        return float(ts)
+    except Exception:
+        return 0.0
+
+
+def format_srt_time(seconds: float) -> str:
+    """Format seconds into standard SRT timestamp hh:mm:ss,ms."""
+    ms = int(round((seconds % 1.0) * 1000))
+    total_sec = int(seconds)
+    sec = total_sec % 60
+    total_min = total_sec // 60
+    minute = total_min % 60
+    hour = total_min // 60
+    return f"{hour:02d}:{minute:02d}:{sec:02d},{ms:03d}"
+
+
+def parse_srt_content(raw_srt: str) -> list[SubtitledLine]:
+    """Parse SubRip (.srt) subtitle content into SubtitledLine objects."""
+    lines: list[SubtitledLine] = []
+    if not raw_srt:
+        return lines
+
+    # Clean BOM and carriage returns
+    clean_text = raw_srt.replace("\ufeff", "").replace("\r\n", "\n").replace("\r", "\n")
+
+    # Match SRT blocks: index, timestamp interval, and subtitle text
+    block_pattern = re.compile(
+        r"(?:^|\n+)(?:(\d+)\s*\n)?(\d{1,2}:\d{2}:\d{2}[,\.]\d{1,3}|\d{1,2}:\d{2}[,\.]\d{1,3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[,\.]\d{1,3}|\d{1,2}:\d{2}[,\.]\d{1,3})\s*\n([\s\S]*?)(?=(?:\n+\d+\s*\n+\d{1,2}:|\n+\d{1,2}:|\Z))"
+    )
+
+    matches = block_pattern.findall(clean_text)
+    seq = 1
+    for m in matches:
+        _, start_str, end_str, body = m
+        start_sec = parse_timestamp_to_seconds(start_str)
+        end_sec = parse_timestamp_to_seconds(end_str)
+
+        body_clean = re.sub(r"<[^>]+>", "", body).strip()
+        if not body_clean:
+            continue
+
+        # Extract character and emotion tags if present: e.g. "[ទិនហ្វី (comedy)]: ឥឡូវឆាប់..."
+        char_part = "អ្នកនិទាន"
+        emo_tag = "neutral"
+        text_content = body_clean
+
+        match_bracket = re.match(r"^\s*\[([^\]]+)\]\s*:\s*(.*)$", body_clean)
+        if match_bracket:
+            char_full = match_bracket.group(1).strip()
+            text_content = match_bracket.group(2).strip()
+            inner = re.match(r"^([^(]+)\s*(?:\(([^)]+)\))?$", char_full)
+            if inner:
+                char_part = inner.group(1).strip()
+                if inner.group(2):
+                    emo_tag = inner.group(2).strip().lower()
+        else:
+            simple = re.match(r"^\s*([^:：\n]+)\s*[:：]\s*(.*)$", body_clean)
+            if simple:
+                char_part = simple.group(1).strip()
+                text_content = simple.group(2).strip()
+
+        matched_voice = "male_narrator"
+        char_clean = char_part.lower()
+        for k, v in CHARACTER_VOICE_MAP.items():
+            if k in char_clean or char_clean in k:
+                matched_voice = v
+                break
+
+        matched_emo = EMOTION_TAG_MAP.get(emo_tag, emo_tag)
+        if matched_emo == "neutral":
+            if matched_voice == "tinfy":
+                matched_emo = "comedy"
+            elif matched_voice == "pao_chin":
+                matched_emo = "stern"
+            elif matched_voice == "male_narrator":
+                matched_emo = "cinematic"
+
+        slot_dur = max(0.5, end_sec - start_sec)
+        # Approximate speed if subtitle slot is tight
+        speed = 1.05 if matched_emo in ("comedy", "action") else 1.0
+
+        lines.append(
+            SubtitledLine(
+                index=seq,
+                start_time=round(start_sec, 3),
+                end_time=round(end_sec, 3),
+                character=char_part,
+                voice=matched_voice,
+                text=text_content,
+                emotion=matched_emo,
+                speed=speed,
+            )
+        )
+        seq += 1
+
+    return lines
 
 
 def parse_script_text(raw_text: str) -> list[MovieDialogueLine]:
@@ -152,7 +232,7 @@ def parse_script_text(raw_text: str) -> list[MovieDialogueLine]:
         if not line_str or line_str.startswith("#"):
             continue
 
-        char_part = ""
+        char_part = "អ្នកនិទាន"
         dialogue_text = ""
         emo_tag = "neutral"
 
@@ -160,7 +240,6 @@ def parse_script_text(raw_text: str) -> list[MovieDialogueLine]:
         if bracket_match:
             char_full = bracket_match.group(1).strip()
             dialogue_text = bracket_match.group(2).strip()
-            # Check for emotion in parentheses: e.g. "ទិនហ្វី (comedy)" or "អ្នកនិទាន (cinematic)"
             inner_match = re.match(r"^([^(]+)\s*(?:\(([^)]+)\))?$", char_full)
             if inner_match:
                 char_part = inner_match.group(1).strip()
@@ -172,7 +251,6 @@ def parse_script_text(raw_text: str) -> list[MovieDialogueLine]:
                 char_part = simple_match.group(1).strip()
                 dialogue_text = simple_match.group(2).strip()
             else:
-                char_part = "អ្នកនិទាន"
                 dialogue_text = line_str
 
         char_clean = char_part.lower()
@@ -191,8 +269,8 @@ def parse_script_text(raw_text: str) -> list[MovieDialogueLine]:
             elif matched_voice == "male_narrator":
                 matched_emo = "cinematic"
 
-        speed = 1.05 if matched_emo in ("comedy", "action") else (0.92 if matched_emo in ("cinematic", "sad") else 1.0)
-        pause = 0.5 if matched_voice == "male_narrator" else 0.35
+        speed = 1.05 if matched_emo in ("comedy", "action") else (0.95 if matched_emo in ("cinematic", "sad") else 1.0)
+        pause = 0.5 if matched_voice == "male_narrator" else 0.4
 
         if dialogue_text:
             lines.append(
@@ -208,28 +286,36 @@ def parse_script_text(raw_text: str) -> list[MovieDialogueLine]:
     return lines
 
 
-def format_srt_time(seconds: float) -> str:
-    """Format seconds into standard SRT timestamp hh:mm:ss,ms."""
-    ms = int(round((seconds % 1.0) * 1000))
-    total_sec = int(seconds)
-    sec = total_sec % 60
-    total_min = total_sec // 60
-    minute = total_min % 60
-    hour = total_min // 60
-    return f"{hour:02d}:{minute:02d}:{sec:02d},{ms:03d}"
-
-
-@router.get("/presets", response_model=MoviePresetsResponse)
-def api_get_movie_presets() -> MoviePresetsResponse:
-    """Return pre-built Cambodian movie and drama dialogue scene presets."""
-    return MoviePresetsResponse(presets=DEFAULT_MOVIE_PRESETS)
-
-
 @router.post("/parse-script", response_model=ScriptParseResponse)
 def api_parse_movie_script(req: ScriptParseRequest) -> ScriptParseResponse:
-    """Parse raw movie script into structured dialogue lines with character and emotion detection."""
+    """Parse raw script text into structured lines with character and emotion detection."""
     parsed = parse_script_text(req.script_text)
     return ScriptParseResponse(lines=parsed)
+
+
+@router.post("/parse-srt", response_model=SrtParseResponse)
+async def api_parse_srt(
+    srt_file: Optional[UploadFile] = File(None),
+    srt_text: Optional[str] = Form(None),
+) -> SrtParseResponse:
+    """Parse standard SRT subtitle file or string into timestamped dialogue lines."""
+    content = ""
+    if srt_file is not None and srt_file.filename:
+        raw_bytes = await srt_file.read()
+        content = raw_bytes.decode("utf-8", errors="replace")
+    elif srt_text:
+        content = srt_text
+
+    if not content.strip():
+        raise HTTPException(status_code=400, detail="Please provide an SRT subtitle file or text.")
+
+    lines = parse_srt_content(content)
+    total_dur = max([l.end_time for l in lines], default=0.0)
+    return SrtParseResponse(
+        lines=lines,
+        total_lines=len(lines),
+        total_duration_sec=round(total_dur, 2),
+    )
 
 
 @router.post("/dub", response_model=MovieDubResponse)
@@ -257,7 +343,6 @@ async def api_dub_movie_scene(req: MovieDubRequest) -> MovieDubResponse:
                 if is_cancelled():
                     raise GenerationCancelledError("Movie dubbing cancelled by user.")
 
-                # Resolve character voice profile
                 voice_id = line.voice if line.voice in voices else "female"
                 clean_t = normalize_khmer_text(line.text)
 
@@ -277,7 +362,6 @@ async def api_dub_movie_scene(req: MovieDubRequest) -> MovieDubResponse:
                 start_t = current_time
                 end_t = current_time + duration
 
-                # Save individual line audio snippet
                 line_wav_id = f"movie_line_{idx + 1}_{voice_id}_{uuid.uuid4().hex[:6]}.wav"
                 line_wav_path = GENERATED_DIR / line_wav_id
                 sf.write(str(line_wav_path), audio_chunk, sr)
@@ -297,7 +381,6 @@ async def api_dub_movie_scene(req: MovieDubRequest) -> MovieDubResponse:
                 segments.append(audio_chunk)
                 current_time = end_t
 
-                # Add silence gap between characters
                 pause_sec = max(0.05, float(line.pause_after_sec))
                 pause_samples = int(pause_sec * sr)
                 if pause_samples > 0:
@@ -315,7 +398,6 @@ async def api_dub_movie_scene(req: MovieDubRequest) -> MovieDubResponse:
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Movie dubbing failed: {exc}") from exc
 
-    # Generate master movie scene WAV
     scene_slug = re.sub(r"[^\w\-_]+", "_", req.title.strip().lower())[:24] or "scene"
     master_id = f"movie_{scene_slug}_{uuid.uuid4().hex[:8]}.wav"
     master_path = GENERATED_DIR / master_id
@@ -323,7 +405,6 @@ async def api_dub_movie_scene(req: MovieDubRequest) -> MovieDubResponse:
 
     total_duration = float(len(master_audio)) / float(sample_rate)
 
-    # Generate SRT Subtitle file
     srt_blocks = []
     for item in line_results:
         idx = item["line_index"]
@@ -340,6 +421,240 @@ async def api_dub_movie_scene(req: MovieDubRequest) -> MovieDubResponse:
     return MovieDubResponse(
         title=req.title,
         full_audio_url=f"/audio/api_generated/{master_id}",
+        total_duration_sec=round(total_duration, 2),
+        srt_subtitles=srt_content,
+        lines=[MovieDialogueResultItem(**item) for item in line_results],
+    )
+
+
+@router.post("/dub-video", response_model=VideoDubResponse)
+async def api_dub_video(
+    lines_json: str = Form(..., description="JSON array of SubtitledLine items"),
+    title: str = Form("Dubbed Movie Scene"),
+    model_id: str = Form("voxcpm2_khmer"),
+    use_lora: bool = Form(True),
+    mix_original_audio: bool = Form(True, description="Mix original video background sound/music at low volume"),
+    bg_volume: float = Form(0.15, description="Volume multiplier for original video audio (0.05 to 0.40)"),
+    video: Optional[UploadFile] = File(None, description="Optional MP4/MOV video file to multiplex"),
+) -> VideoDubResponse:
+    """Dub movie video from timestamped subtitle lines, outputting master WAV, SRT, and multiplexed MP4."""
+    try:
+        raw_lines = json.loads(lines_json)
+        sub_lines = [SubtitledLine(**item) for item in raw_lines]
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid lines_json format: {exc}")
+
+    if not sub_lines:
+        raise HTTPException(status_code=400, detail="At least one subtitle line is required.")
+
+    clear_cancel()
+    voices = load_voice_profiles()
+
+    # Save uploaded video if present
+    tmp_video_path: Optional[Path] = None
+    if video is not None and video.filename:
+        video_suffix = Path(video.filename).suffix or ".mp4"
+        tmp_video = tempfile.NamedTemporaryFile(delete=False, suffix=video_suffix)
+        tmp_video.write(await video.read())
+        tmp_video.close()
+        tmp_video_path = Path(tmp_video.name)
+
+    def _run_subtitled_dubbing() -> tuple[list[dict[str, Any]], np.ndarray, int]:
+        with get_engine_lock():
+            engine = get_cached_engine(model_id)
+            sr = 48000
+
+            # Calculate total duration needed for master timeline
+            max_end = max([l.end_time for l in sub_lines], default=10.0)
+            total_samples = int((max_end + 3.0) * sr)
+            master_buffer = np.zeros(total_samples, dtype=np.float32)
+            results: list[dict[str, Any]] = []
+
+            for idx, line in enumerate(sub_lines):
+                if is_cancelled():
+                    raise GenerationCancelledError("Video dubbing cancelled by user.")
+
+                voice_id = line.voice if line.voice in voices else "female"
+                clean_t = normalize_khmer_text(line.text)
+
+                synth_res = engine.synthesize(
+                    text=clean_t,
+                    voice=voice_id,
+                    normalize=False,
+                    speed=line.speed,
+                    use_lora=use_lora,
+                    emotion=line.emotion,
+                )
+
+                chunk_audio = synth_res.audio
+                sr = synth_res.sample_rate
+                dur = float(len(chunk_audio)) / float(sr)
+
+                start_s = line.start_time
+                end_s = start_s + dur
+
+                start_idx = int(start_s * sr)
+                end_idx = start_idx + len(chunk_audio)
+
+                if end_idx > len(master_buffer):
+                    pad = np.zeros(end_idx - len(master_buffer) + int(sr * 2.0), dtype=np.float32)
+                    master_buffer = np.concatenate([master_buffer, pad])
+
+                # Overlay speech at exact timestamp
+                master_buffer[start_idx:end_idx] += chunk_audio
+
+                # Save line snippet
+                line_wav_id = f"sub_line_{idx + 1}_{voice_id}_{uuid.uuid4().hex[:6]}.wav"
+                line_wav_path = GENERATED_DIR / line_wav_id
+                sf.write(str(line_wav_path), chunk_audio, sr)
+
+                results.append({
+                    "line_index": idx + 1,
+                    "character": line.character,
+                    "voice": voice_id,
+                    "emotion": line.emotion,
+                    "text": line.text,
+                    "start_time": round(start_s, 3),
+                    "end_time": round(end_s, 3),
+                    "duration": round(dur, 3),
+                    "audio_url": f"/audio/api_generated/{line_wav_id}",
+                })
+
+            # Trim trailing silence
+            non_zeros = np.nonzero(master_buffer)[0]
+            trim_end = non_zeros[-1] + int(0.5 * sr) if len(non_zeros) > 0 else len(master_buffer)
+            final_master = master_buffer[: min(trim_end, len(master_buffer))]
+
+            # Normalize peak to -1dB to prevent clipping
+            peak = float(np.max(np.abs(final_master))) if final_master.size > 0 else 0.0
+            if peak > 0.95:
+                final_master = final_master * (0.92 / peak)
+
+            return results, final_master, sr
+
+    try:
+        line_results, master_audio, sample_rate = await asyncio.to_thread(_run_subtitled_dubbing)
+    except GenerationCancelledError as exc:
+        if tmp_video_path:
+            tmp_video_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=499, detail="Dubbing cancelled.") from exc
+    except Exception as exc:
+        if tmp_video_path:
+            tmp_video_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=f"Dubbing failed: {exc}") from exc
+
+    # Write Master Audio WAV
+    clean_title = re.sub(r"[^\w\-_]+", "_", title.strip().lower())[:24] or "dubbed"
+    unique_tag = uuid.uuid4().hex[:8]
+    master_wav_id = f"dubbed_{clean_title}_{unique_tag}.wav"
+    master_wav_path = GENERATED_DIR / master_wav_id
+    sf.write(str(master_wav_path), master_audio, sample_rate)
+    total_duration = float(len(master_audio)) / float(sample_rate)
+
+    # Generate SRT Subtitle
+    srt_blocks = []
+    for item in line_results:
+        idx = item["line_index"]
+        t_start = format_srt_time(item["start_time"])
+        t_end = format_srt_time(item["end_time"])
+        char = item["character"]
+        txt = item["text"]
+        srt_blocks.append(f"{idx}\n{t_start} --> {t_end}\n[{char}]: {txt}\n")
+
+    srt_content = "\n".join(srt_blocks)
+    srt_id = f"{master_wav_id[:-4]}.srt"
+    (GENERATED_DIR / srt_id).write_text(srt_content, encoding="utf-8")
+
+    # If Video was uploaded, multiplex audio into video using ffmpeg
+    dubbed_video_url: Optional[str] = None
+    if tmp_video_path and tmp_video_path.exists():
+        ffmpeg_bin = shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
+        if ffmpeg_bin and Path(ffmpeg_bin).exists():
+            out_video_id = f"dubbed_video_{clean_title}_{unique_tag}.mp4"
+            out_video_path = GENERATED_DIR / out_video_id
+
+            if mix_original_audio:
+                # Keep original audio ducked to 15% and layer Khmer dubbed speech on top
+                cmd = [
+                    ffmpeg_bin,
+                    "-y",
+                    "-i",
+                    str(tmp_video_path),
+                    "-i",
+                    str(master_wav_path),
+                    "-filter_complex",
+                    f"[0:a]volume={bg_volume}[bg];[1:a]volume=1.0[dub];[bg][dub]amix=inputs=2:duration=first:dropout_transition=2[aout]",
+                    "-map",
+                    "0:v:0",
+                    "-map",
+                    "[aout]",
+                    "-c:v",
+                    "copy",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "256k",
+                    str(out_video_path),
+                ]
+            else:
+                # Replace video audio completely with new Khmer master track
+                cmd = [
+                    ffmpeg_bin,
+                    "-y",
+                    "-i",
+                    str(tmp_video_path),
+                    "-i",
+                    str(master_wav_path),
+                    "-map",
+                    "0:v:0",
+                    "-map",
+                    "1:a:0",
+                    "-c:v",
+                    "copy",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "256k",
+                    str(out_video_path),
+                ]
+
+            try:
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=120)
+                if res.returncode == 0 and out_video_path.exists():
+                    dubbed_video_url = f"/audio/api_generated/{out_video_id}"
+                else:
+                    # Fallback without filter_complex if original video had no audio track
+                    fallback_cmd = [
+                        ffmpeg_bin,
+                        "-y",
+                        "-i",
+                        str(tmp_video_path),
+                        "-i",
+                        str(master_wav_path),
+                        "-map",
+                        "0:v:0",
+                        "-map",
+                        "1:a:0",
+                        "-c:v",
+                        "copy",
+                        "-c:a",
+                        "aac",
+                        "-b:a",
+                        "256k",
+                        str(out_video_path),
+                    ]
+                    f_res = subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
+                    if f_res.returncode == 0 and out_video_path.exists():
+                        dubbed_video_url = f"/audio/api_generated/{out_video_id}"
+            except Exception as ffmpeg_err:
+                print(f"[!] Warning: FFmpeg multiplexing failed: {ffmpeg_err}")
+            finally:
+                tmp_video_path.unlink(missing_ok=True)
+
+    return VideoDubResponse(
+        title=title,
+        video_url=dubbed_video_url,
+        full_audio_url=f"/audio/api_generated/{master_wav_id}",
         total_duration_sec=round(total_duration, 2),
         srt_subtitles=srt_content,
         lines=[MovieDialogueResultItem(**item) for item in line_results],
