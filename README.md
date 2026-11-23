@@ -119,7 +119,7 @@ In a second terminal, start the Next.js frontend:
 cd frontend
 npm run dev
 ```
-Open **`http://localhost:3000`** in your browser to use the studio (API documentation is available at `http://127.0.0.1:8000/docs`).
+Open **`http://localhost:3001`** in your browser to use the studio (API documentation is available at `http://127.0.0.1:8000/docs`).
 - **Tab 1 — Voice Cloning & Speech Studio**:
   - Choose a preset Khmer script or type your own long-form text.
   - Select **Female (`ស្រី`)**, **Male (`ប្រុស`)**, **Upload Custom Audio (`.wav`/`.mp3`)**, or **Record from Microphone**.

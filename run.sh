@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # 🇰🇭 KhmerVoice AI — Single-Command Full-Stack Runner
-# Runs FastAPI Backend (Port 8000) + Next.js Frontend (Port 3000) Concurrently
+# Runs FastAPI Backend (Port 8000) + Next.js Frontend (Port 3001) Concurrently
 # ==============================================================================
 
 set -e
@@ -51,9 +51,12 @@ if [ ! -d "$PROJECT_ROOT/frontend/node_modules" ]; then
     npm install --prefix "$PROJECT_ROOT/frontend"
 fi
 
-# 4. Cleanup old background processes on ports 8000 and 3000 if lingering
-echo -e "${YELLOW}[*] Checking ports 8000 & 3000...${NC}"
+FRONTEND_PORT="${FRONTEND_PORT:-3001}"
+
+# 4. Cleanup old background processes on ports 8000, 3001, and 3000 if lingering
+echo -e "${YELLOW}[*] Checking ports 8000 & ${FRONTEND_PORT}...${NC}"
 lsof -ti:8000 2>/dev/null | xargs kill -9 2>/dev/null || true
+lsof -ti:"$FRONTEND_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
 lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null || true
 
 # Process tracker
@@ -71,6 +74,7 @@ cleanup() {
     fi
     # Ensure child processes on ports are freed
     lsof -ti:8000 2>/dev/null | xargs kill -9 2>/dev/null || true
+    lsof -ti:"$FRONTEND_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
     lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null || true
     echo -e "${GREEN}[✓] All servers stopped. Have a great day!${NC}"
     exit 0
@@ -86,15 +90,15 @@ BACKEND_PID=$!
 # Wait briefly for backend to initialize
 sleep 2
 
-# 6. Start Frontend Server
-echo -e "${CYAN}[*] Starting Next.js Studio on http://localhost:3000 ...${NC}"
-npm run dev --prefix "$PROJECT_ROOT/frontend" &
+# 6. Start Frontend Server on port 3001
+echo -e "${CYAN}[*] Starting Next.js Studio on http://localhost:${FRONTEND_PORT} ...${NC}"
+PORT="$FRONTEND_PORT" npm run dev --prefix "$PROJECT_ROOT/frontend" &
 FRONTEND_PID=$!
 
 echo ""
 echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}${BOLD}  🚀 KhmerVoice AI is LIVE!${NC}"
-echo -e "  🎬 ${BOLD}Web Studio & Movie Dubbing:${NC}  ${CYAN}http://localhost:3000${NC}"
+echo -e "  🎬 ${BOLD}Web Studio & Movie Dubbing:${NC}  ${CYAN}http://localhost:${FRONTEND_PORT}${NC}"
 echo -e "  ⚙️  ${BOLD}FastAPI Backend API:${NC}         ${CYAN}http://localhost:8000${NC}"
 echo -e "  📚 ${BOLD}Interactive API Docs:${NC}        ${CYAN}http://localhost:8000/docs${NC}"
 echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════════════${NC}"

@@ -28,7 +28,7 @@ def main():
     print(f"{CYAN}{BOLD}")
     print("=" * 72)
     print("   🇰🇭 KhmerVoice AI — Speech Studio & Movie Dubbing System")
-    print("   FastAPI (Port 8000) + Next.js (Port 3000)")
+    print("   FastAPI (Port 8000) + Next.js (Port 3001)")
     print("=" * 72)
     print(f"{RESET}")
 
@@ -47,6 +47,8 @@ def main():
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
 
+    frontend_port = int(os.environ.get("FRONTEND_PORT", 3001))
+
     # 3. Launch Backend
     print(f"{CYAN}[*] Starting Backend API on http://127.0.0.1:8000 ...{RESET}")
     backend_proc = subprocess.Popen(
@@ -58,15 +60,15 @@ def main():
     time.sleep(1.5)
 
     # 4. Launch Frontend
-    print(f"{CYAN}[*] Starting Next.js Studio on http://localhost:3000 ...{RESET}")
+    print(f"{CYAN}[*] Starting Next.js Studio on http://localhost:{frontend_port} ...{RESET}")
     frontend_proc = subprocess.Popen(
-        ["npm", "run", "dev"],
+        ["npm", "run", "dev", "--", "-p", str(frontend_port)],
         cwd=str(frontend_dir),
     )
 
     print(f"\n{GREEN}{BOLD}" + "=" * 72)
     print("  🚀 KhmerVoice AI is running!")
-    print(f"  🎬 Web Studio & Movie Dubbing:  {CYAN}http://localhost:3000{GREEN}")
+    print(f"  🎬 Web Studio & Movie Dubbing:  {CYAN}http://localhost:{frontend_port}{GREEN}")
     print(f"  ⚙️  FastAPI Backend API:         {CYAN}http://localhost:8000{GREEN}")
     print(f"  📚 Interactive API Docs:        {CYAN}http://localhost:8000/docs{GREEN}")
     print("=" * 72 + f"{RESET}")

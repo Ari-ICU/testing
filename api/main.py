@@ -63,7 +63,7 @@ def api_root() -> dict[str, Any]:
         "status": "online",
         "version": "2.2.0",
         "docs_url": "/docs",
-        "frontend_url": "http://localhost:3000",
+        "frontend_url": "http://localhost:3001",
         "endpoints": {
             "models": "/api/models",
             "voices": "/api/voices",
