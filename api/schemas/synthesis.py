@@ -19,6 +19,13 @@ EMOTION_PRESETS: dict[str, str] = {
     "stern": "strict commanding authority, deep resonant courtroom gavel tone, intimidating",
     "friendly": "warm, friendly, approachable, smiling and welcoming tone",
     "casual": "conversational, relaxed, friendly chat with a best friend",
+    "cinematic": "deep cinematic movie trailer narrator, dramatic epic pause, suspenseful resonant delivery",
+    "movie_narrator": "deep cinematic movie trailer narrator, dramatic epic pause, suspenseful resonant delivery",
+    "action": "intense action movie screaming, adrenaline, shouting combat delivery, fast aggressive pace",
+    "suspense": "creepy suspenseful eerie murmur, tension, dark dramatic thriller whisper",
+    "romantic": "tender romantic movie voice, gentle soft breathy, emotional heartfelt warmth",
+    "melodrama": "tearful emotional drama, melancholic, sobbing tone, heavy heart, deep sorrow",
+    "villain": "sinister wicked laughing villain, menacing deep sneer, dark cruel mockery",
 }
 
 

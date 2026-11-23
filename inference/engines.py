@@ -48,6 +48,13 @@ EMOTION_STYLE_PROMPTS: dict[str, str] = {
     "stern": "strict commanding authority, deep resonant courtroom gavel tone, intimidating",
     "friendly": "warm, friendly, approachable, smiling and welcoming tone",
     "casual": "conversational, relaxed, friendly chat with a best friend",
+    "cinematic": "deep cinematic movie trailer narrator, dramatic epic pause, suspenseful resonant delivery",
+    "movie_narrator": "deep cinematic movie trailer narrator, dramatic epic pause, suspenseful resonant delivery",
+    "action": "intense action movie screaming, adrenaline, shouting combat delivery, fast aggressive pace",
+    "suspense": "creepy suspenseful eerie murmur, tension, dark dramatic thriller whisper",
+    "romantic": "tender romantic movie voice, gentle soft breathy, emotional heartfelt warmth",
+    "melodrama": "tearful emotional drama, melancholic, sobbing tone, heavy heart, deep sorrow",
+    "villain": "sinister wicked laughing villain, menacing deep sneer, dark cruel mockery",
 }
 
 _CANCEL_EVENT = threading.Event()
@@ -1231,7 +1238,7 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
         eff_speed = speed
         eff_pause_sec = 0.14
         eff_steps = inference_timesteps
-        if emo in ("angry", "excited"):
+        if emo in ("angry", "excited", "action"):
             if eff_cfg < 2.5:
                 eff_cfg = 2.5
             if eff_steps < 18:
@@ -1245,25 +1252,30 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
                 eff_steps = 18
             eff_speed = 1.05 if abs(speed - 1.0) < 1e-4 else speed
             eff_pause_sec = 0.10
-        elif emo in ("sad", "whisper"):
+        elif emo in ("sad", "whisper", "suspense", "melodrama"):
             if eff_cfg < 2.2:
                 eff_cfg = 2.2
             if eff_steps < 18:
                 eff_steps = 18
             eff_speed = 0.88 if abs(speed - 1.0) < 1e-4 else speed
             eff_pause_sec = 0.30
-        elif emo == "stern":
+        elif emo in ("stern", "villain"):
             if eff_cfg < 2.3:
                 eff_cfg = 2.3
             eff_speed = 0.94 if abs(speed - 1.0) < 1e-4 else speed
             eff_pause_sec = 0.18
-        elif emo in ("storytelling", "story"):
+        elif emo in ("storytelling", "story", "movie_narrator", "cinematic"):
             if eff_cfg < 2.4:
                 eff_cfg = 2.4
             if eff_steps < 18:
                 eff_steps = 18
             eff_speed = 0.92 if abs(speed - 1.0) < 1e-4 else speed
             eff_pause_sec = 0.28
+        elif emo == "romantic":
+            if eff_cfg < 2.3:
+                eff_cfg = 2.3
+            eff_speed = 0.92 if abs(speed - 1.0) < 1e-4 else speed
+            eff_pause_sec = 0.22
 
         # In direct zero-shot mode without reference transcript, ensure guidance is strong enough (>= 2.2)
         # to firmly transfer the speaker's acoustic timbre without drifting to the base model.
@@ -1319,7 +1331,7 @@ class VoxCPM2Engine(BaseKhmerTTSEngine):
             t0 = time.perf_counter()
             # Clean any legacy bracketed emotion tags so the TTS model never recites them
             clean_text = re.sub(
-                r"^\[(?:កំប្លែង|ម៉ឺងម៉ាត់|រីករាយ|សោកសៅ|ខឹង|និទាន|ខ្សឹប|ព័ត៌មាន|សន្ទនា|បុរាណ|រាយការណ៍|comedy|stern|happy|sad|angry|story|whisper|news|casual|heritage|reporter)\]\s*",
+                r"^\[(?:កំប្លែង|ម៉ឺងម៉ាត់|រីករាយ|សោកសៅ|ខឹង|និទាន|ខ្សឹប|ព័ត៌មាន|សន្ទនា|បុរាណ|រាយការណ៍|ភាពយន្ត|កុន|ប្រយុទ្ធ|ស្នេហា|រន្ធត់|តួអាក្រក់|comedy|stern|happy|sad|angry|story|whisper|news|casual|heritage|reporter|cinematic|movie_narrator|action|suspense|romantic|melodrama|villain)\]\s*",
                 "",
                 text.strip(),
                 flags=re.IGNORECASE,

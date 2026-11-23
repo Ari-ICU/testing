@@ -22,6 +22,7 @@ from api.config import OUTPUTS_DIR, VOICES_DIR
 from api.routers import (
     finetune_router,
     history_router,
+    movie_router,
     synthesis_router,
     voices_router,
 )
@@ -50,6 +51,7 @@ app.mount("/voices", StaticFiles(directory=str(VOICES_DIR)), name="voices")
 # Include modular API routers
 app.include_router(voices_router)
 app.include_router(synthesis_router)
+app.include_router(movie_router)
 app.include_router(finetune_router)
 app.include_router(history_router)
 
@@ -69,6 +71,9 @@ def api_root() -> dict[str, Any]:
             "clone": "/api/clone",
             "progress": "/api/progress",
             "normalize": "/api/normalize",
+            "movie_dub": "/api/movie/dub",
+            "movie_presets": "/api/movie/presets",
+            "movie_parse": "/api/movie/parse-script",
             "finetune_dataset": "/api/finetune/dataset",
             "finetune_status": "/api/finetune/status",
             "history": "/api/history",

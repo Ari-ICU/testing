@@ -7,6 +7,16 @@ from .finetune import (
     FinetuneStartRequest,
     FinetuneStatusResponse,
 )
+from .movie import (
+    MovieDialogueLine,
+    MovieDialogueResultItem,
+    MovieDubRequest,
+    MovieDubResponse,
+    MoviePresetItem,
+    MoviePresetsResponse,
+    ScriptParseRequest,
+    ScriptParseResponse,
+)
 from .synthesis import (
     NormalizeRequest,
     NormalizeResponse,
@@ -24,5 +34,13 @@ __all__ = [
     "DatasetSampleItem",
     "DatasetListResponse",
     "FinetuneStatusResponse",
+    "MovieDialogueLine",
+    "MovieDubRequest",
+    "MovieDialogueResultItem",
+    "MovieDubResponse",
+    "ScriptParseRequest",
+    "ScriptParseResponse",
+    "MoviePresetItem",
+    "MoviePresetsResponse",
 ]
 
