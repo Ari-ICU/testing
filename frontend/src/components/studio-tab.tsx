@@ -66,6 +66,20 @@ function splitVoiceLabel(rawLabel: string, fallbackId: string, description?: str
   };
 }
 
+interface ApiModelMeta {
+  id: string;
+  name?: string;
+  execution?: string;
+  description?: string;
+}
+
+interface ApiVoiceProfile {
+  id: string;
+  label?: string;
+  description?: string;
+  speaker_id?: string;
+}
+
 interface SynthesisResultData {
   audio_url: string;
   model_name: string;
@@ -133,7 +147,6 @@ export function StudioTab() {
   // Fetch real models & voices from backend
   React.useEffect(() => {
     let active = true;
-    setIsLoadingMeta(true);
 
     Promise.all([
       fetch(getApiUrl("/api/models")).then((r) => (r.ok ? r.json() : null)),
@@ -143,7 +156,9 @@ export function StudioTab() {
         if (!active) return;
 
         if (modelsRes?.models) {
-          const loadedModels: DropdownOption[] = Object.values(modelsRes.models).map((m: any) => ({
+          const loadedModels: DropdownOption[] = Object.values(
+            modelsRes.models as Record<string, ApiModelMeta>
+          ).map((m) => ({
             value: m.id,
             label: m.name || m.id,
             sublabel: m.execution || m.description,
@@ -153,7 +168,9 @@ export function StudioTab() {
         }
 
         if (voicesRes?.voices) {
-          const loadedVoices: DropdownOption[] = Object.values(voicesRes.voices).map((v: any) => {
+          const loadedVoices: DropdownOption[] = Object.values(
+            voicesRes.voices as Record<string, ApiVoiceProfile>
+          ).map((v) => {
             const { label, sublabel } = splitVoiceLabel(v.label || "", v.id, v.description);
             return {
               value: v.id,
@@ -163,8 +180,10 @@ export function StudioTab() {
             };
           });
           setVoiceOptions([...loadedVoices, ...CUSTOM_CLONE_OPTIONS]);
-          if (loadedVoices.length > 0 && !loadedVoices.some((v) => v.value === voiceSource)) {
-            setVoiceSource(loadedVoices[0].value);
+          if (loadedVoices.length > 0) {
+            setVoiceSource((prev) =>
+              loadedVoices.some((v) => v.value === prev) ? prev : loadedVoices[0].value
+            );
           }
         }
       })
@@ -208,8 +227,8 @@ export function StudioTab() {
         normalized: data.normalized_text,
         chunks: data.chunks || [],
       });
-    } catch (err: any) {
-      setErrorMessage(err.message || "Normalization preview error.");
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Normalization preview error.");
     } finally {
       setIsLoadingNorm(false);
     }
@@ -697,7 +716,7 @@ export function StudioTab() {
               <Volume2 className="w-8 h-8 text-slate-700 mx-auto" />
               <p className="text-xs font-medium text-slate-300">មិនទាន់មានសំឡេងនៅឡើយទេ</p>
               <p className="text-[11px] text-slate-500">
-                វាយអត្ថបទនៅខាងឆ្វេង រួចចុចប៊ូតុង "បង្កើតសំឡេងខ្មែរ" ដើម្បីស្ដាប់លទ្ធផល 48kHz។
+                វាយអត្ថបទនៅខាងឆ្វេង រួចចុចប៊ូតុង &quot;បង្កើតសំឡេងខ្មែរ&quot; ដើម្បីស្ដាប់លទ្ធផល 48kHz។
               </p>
             </div>
           )}

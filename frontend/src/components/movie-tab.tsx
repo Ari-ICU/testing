@@ -295,10 +295,6 @@ export function MovieTab() {
     return filteredLines.slice(start, start + PAGE_SIZE);
   }, [filteredLines, safePage]);
 
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, characterFilter]);
-
   const timelineEndSec = React.useMemo(() => {
     if (lines.length === 0) return 0;
     return Math.max(...lines.map((l) => l.end_time || 0));
@@ -407,11 +403,11 @@ export function MovieTab() {
         const data = await res.json();
         if (data.lines?.length > 0) {
           setLines(
-            data.lines.map((l: any, i: number) => ({
+            (data.lines as ApiParsedLine[]).map((l, i) => ({
               id: `line_${Date.now()}_${i}`,
               index: l.index || i + 1,
-              start_time: l.start_time,
-              end_time: l.end_time,
+              start_time: l.start_time ?? 0,
+              end_time: l.end_time ?? 3,
               character: l.character || "អ្នកនិទាន",
               voice: l.voice || "male_narrator",
               text: l.text,
@@ -435,7 +431,7 @@ export function MovieTab() {
         const data = await res.json();
         if (data.lines?.length > 0) {
           let cursor = 0.5;
-          const mapped: SubtitledDialogueItem[] = data.lines.map((l: any, i: number) => {
+          const mapped: SubtitledDialogueItem[] = (data.lines as ApiParsedLine[]).map((l, i) => {
             // Estimate natural reading duration from character count (~12 chars/sec, min 2.2s)
             const estDur = Math.max(2.2, Number(((l.text?.length || 12) / 11.5).toFixed(1)));
             const start = Number(cursor.toFixed(1));
@@ -458,8 +454,8 @@ export function MovieTab() {
           setCurrentPage(1);
         }
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || "Could not parse input content.");
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not parse input content.");
     }
   };
 
@@ -566,7 +562,7 @@ export function MovieTab() {
             setProgress(pData);
           }
         }
-      } catch (_) {}
+      } catch {}
     }, 500);
 
     try {
@@ -600,9 +596,9 @@ export function MovieTab() {
       setSrtSubtitles(data.srt_subtitles);
       setResultLines(data.lines || []);
       setOutputTab(data.video_url ? "video" : "audio");
-    } catch (err: any) {
-      if (err?.name !== "AbortError") {
-        setErrorMessage(err.message || "Failed to dub movie scene.");
+    } catch (err: unknown) {
+      if ((err as Error)?.name !== "AbortError") {
+        setErrorMessage(err instanceof Error ? err.message : "Failed to dub movie scene.");
       }
     } finally {
       clearInterval(pollInterval);
@@ -615,7 +611,7 @@ export function MovieTab() {
     abortControllerRef.current?.abort();
     try {
       await fetch(getApiUrl("/api/cancel"), { method: "POST" });
-    } catch (_) {}
+    } catch {}
     setIsDubbing(false);
   };
 
@@ -985,14 +981,20 @@ export function MovieTab() {
                           <input
                             type="text"
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={(e) => {
+                              setSearchQuery(e.target.value);
+                              setCurrentPage(1);
+                            }}
                             placeholder="ស្វែងរកតាមលេខ តួអង្គ ឬអត្ថបទខ្មែរ..."
                             className="w-full rounded-lg border border-slate-800 bg-[#0b1120] pl-8 pr-7 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:border-emerald-500/60 focus:outline-none"
                           />
                           {searchQuery && (
                             <button
                               type="button"
-                              onClick={() => setSearchQuery("")}
+                              onClick={() => {
+                                setSearchQuery("");
+                                setCurrentPage(1);
+                              }}
                               className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
                             >
                               <X className="h-3.5 w-3.5" />
@@ -1004,7 +1006,10 @@ export function MovieTab() {
                           <div className="flex items-center gap-1 flex-wrap">
                             <button
                               type="button"
-                              onClick={() => setCharacterFilter("all")}
+                              onClick={() => {
+                                setCharacterFilter("all");
+                                setCurrentPage(1);
+                              }}
                               className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
                                 characterFilter === "all"
                                   ? "bg-emerald-600/20 text-emerald-300 border border-emerald-500/40"
@@ -1017,7 +1022,10 @@ export function MovieTab() {
                               <button
                                 key={char}
                                 type="button"
-                                onClick={() => setCharacterFilter(char)}
+                                onClick={() => {
+                                  setCharacterFilter(char);
+                                  setCurrentPage(1);
+                                }}
                                 className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
                                   characterFilter === char
                                     ? "bg-emerald-600/20 text-emerald-300 border border-emerald-500/40"
@@ -1426,7 +1434,7 @@ export function MovieTab() {
                 <Film className="h-9 w-9 text-slate-700 mx-auto" />
                 <p className="text-xs font-medium text-slate-300">លទ្ធផលនឹងបង្ហាញនៅទីនេះ (Result Preview)</p>
                 <p className="text-[11px] text-slate-500 max-w-xs mx-auto leading-relaxed">
-                  ក្រោយពីចុច "ចាប់ផ្ដើមបញ្ចូលសំឡេង" បងនឹងទទួលបាន Video MP4, Master 48kHz WAV និង Subtitle SRT នៅត្រង់នេះ។
+                  ក្រោយពីចុច &quot;ចាប់ផ្ដើមបញ្ចូលសំឡេង&quot; បងនឹងទទួលបាន Video MP4, Master 48kHz WAV និង Subtitle SRT នៅត្រង់នេះ។
                 </p>
               </div>
             ) : (
