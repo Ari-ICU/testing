@@ -3,7 +3,6 @@
 import * as React from "react";
 import {
   Clapperboard,
-  Sparkles,
   Play,
   Download,
   Copy,
@@ -15,6 +14,8 @@ import {
   Clock,
   Layers,
   Wand2,
+  Sliders,
+  AudioWaveform,
 } from "lucide-react";
 import { getApiUrl } from "@/lib/api";
 import { formatHumanDuration } from "@/lib/utils";
@@ -48,49 +49,28 @@ interface DialogueResultItem {
   audio_url: string;
 }
 
-interface MoviePreset {
-  id: string;
-  title: string;
-  genre: string;
-  description: string;
-  script_text: string;
-}
-
-const VOICE_OPTIONS: DropdownOption[] = [
-  { value: "tinfy", label: "🎭 ទិនហ្វី (Tinfy)", sublabel: "Classic Khmer Comedy Movie Dub" },
-  { value: "pao_chin", label: "⚖️ ប៉ាវចិន (Judge Bao)", sublabel: "Deep Booming Courtroom / Warrior Voice" },
-  { value: "male_narrator", label: "🎬 អ្នកនិទាន (Vannak)", sublabel: "Dramatic Cinematic Film Narrator" },
-  { value: "male", label: "👨 តារា (Dara)", sublabel: "Hero / Male Protagonist" },
-  { value: "female", label: "👩 សុភា (Sophea)", sublabel: "Heroine / Female Lead" },
-  { value: "female_youth", label: "👧 ចន្ធូ (Chanthou)", sublabel: "Youthful / Cheerful Sister" },
-  { value: "male_reporter", label: "📰 ចាន់ (Chan)", sublabel: "Fast-Paced Action Broadcaster" },
-  { value: "female_news", label: "👩‍💼 បុប្ផា (Bopha)", sublabel: "Articulate Announcer" },
-  { value: "male_heritage", label: "🏛️ សុខា (Sokha)", sublabel: "Ancient Historical Dignitary" },
-  { value: "male_podcast", label: "🎙️ រិទ្ធី (Rithy)", sublabel: "Casual Sidekick" },
-];
-
 const EMOTION_OPTIONS: DropdownOption[] = [
-  { value: "comedy", label: "🎭 កំប្លែង (Comedy Dub)", sublabel: "Laughing, chuckles, playful comedic pacing" },
-  { value: "stern", label: "⚖️ ម៉ឺងម៉ាត់ (Stern / Authority)", sublabel: "Deep, commanding courtroom authority" },
-  { value: "cinematic", label: "🎬 ភាពយន្ត (Cinematic Narrator)", sublabel: "Epic trailer narrator, dramatic resonant pause" },
-  { value: "action", label: "⚔️ ប្រយុទ្ធ (Action / Screaming)", sublabel: "High adrenaline combat delivery, fast pace" },
-  { value: "sad", label: "😢 សោកសៅ (Melodrama / Sorrow)", sublabel: "Tearful drama, trembling soft sigh" },
+  { value: "comedy", label: "🎭 កំប្លែង (Comedy Dub)", sublabel: "Playful laughter & high-energy comedy cadence" },
+  { value: "stern", label: "⚖️ ម៉ឺងម៉ាត់ (Stern / Authority)", sublabel: "Deep commanding courtroom authority" },
+  { value: "cinematic", label: "🎬 ភាពយន្ត (Cinematic Narrator)", sublabel: "Epic movie trailer narrator with resonant pause" },
+  { value: "action", label: "⚔️ ប្រយុទ្ធ (Action Combat)", sublabel: "High adrenaline shouting & combat delivery" },
+  { value: "sad", label: "😢 សោកសៅ (Melodrama / Sorrow)", sublabel: "Emotional drama, soft trembling sigh" },
   { value: "romantic", label: "💖 ស្នេហា (Romantic / Warm)", sublabel: "Tender heartfelt warmth, soft breathy delivery" },
-  { value: "suspense", label: "🤫 រន្ធត់ (Suspense / Thriller)", sublabel: "Eerie tension, dark dramatic whisper" },
+  { value: "suspense", label: "🤫 រន្ធត់ (Suspense Thriller)", sublabel: "Eerie tension, dark dramatic whisper" },
   { value: "happy", label: "😃 រីករាយ (Happy / Bright)", sublabel: "Joyful smile, bright energetic tone" },
-  { value: "neutral", label: "💬 ធម្មតា (Natural Neutral)", sublabel: "Steady, clear cinematic dialogue" },
+  { value: "neutral", label: "💬 ធម្មតា (Natural Neutral)", sublabel: "Standard natural dialogue pacing" },
 ];
 
 export function MovieTab() {
-  const [presets, setPresets] = React.useState<MoviePreset[]>([]);
-  const [selectedPresetId, setSelectedPresetId] = React.useState<string>("tinfy_vs_pao_chin");
-  const [scriptMode, setScriptMode] = React.useState<"script" | "lines">("script");
-  const [sceneTitle, setSceneTitle] = React.useState("🎭 ទិនហ្វី ប៉ះ ប៉ាវចិន");
-  const [scriptText, setScriptText] = React.useState<string>(`[អ្នកនិទាន (cinematic)]: នៅសាលាក្តីក្រុងខៃហ្វុង ថ្ងៃនេះមានរឿងចម្លែកមួយបានកើតឡើង។
-[ទិនហ្វី (comedy)]: ឥឡូវឆាប់ដោះលែងគេទាំងពីរទៅ ឲ្យខ្ញុំធ្វើអីក៏បានដែរ លោកម្ចាស់! ហិហិ!
-[ប៉ាវចិន (stern)]: ហ៊ានប្រមាថតុលាការឬ? ឈប់សើចភ្លាម! ឆ្មាំទាំងឡាយ យកកាំបិតក្បាលឆ្កែមក!
-[ទិនហ្វី (comedy)]: អូយ! កុំអីលោកបង! ខ្ញុំគ្រាន់តែនិយាយលេងសើចសោះហ្នឹង!
-[ប៉ាវចិន (stern)]: នៅចំពោះមុខច្បាប់ គ្មានការលេងសើចឡើយ!`);
+  const [voiceOptions, setVoiceOptions] = React.useState<DropdownOption[]>([]);
+  const [isLoadingVoices, setIsLoadingVoices] = React.useState(true);
+
+  const [sceneTitle, setSceneTitle] = React.useState("ឈុតភាពយន្តថ្មី");
+  const [scriptMode, setScriptMode] = React.useState<"lines" | "script">("lines");
+
+  const [scriptText, setScriptText] = React.useState<string>(
+    `[អ្នកនិទាន (cinematic)]: នៅសាលាក្តីក្រុងខៃហ្វុង ថ្ងៃនេះមានរឿងចម្លែកមួយបានកើតឡើង។\n[ទិនហ្វី (comedy)]: ឥឡូវឆាប់ដោះលែងគេទាំងពីរទៅ ឲ្យខ្ញុំធ្វើអីក៏បានដែរ លោកម្ចាស់!\n[ប៉ាវចិន (stern)]: ហ៊ានប្រមាថតុលាការឬ? ឈប់សើចភ្លាម! ឆ្មាំទាំងឡាយ យកកាំបិតក្បាលឆ្កែមក!`
+  );
 
   const [lines, setLines] = React.useState<DialogueLine[]>([
     {
@@ -106,7 +86,7 @@ export function MovieTab() {
       id: "l2",
       character: "ទិនហ្វី",
       voice: "tinfy",
-      text: "ឥឡូវឆាប់ដោះលែងគេទាំងពីរទៅ ឲ្យខ្ញុំធ្វើអីក៏បានដែរ លោកម្ចាស់! ហិហិ!",
+      text: "ឥឡូវឆាប់ដោះលែងគេទាំងពីរទៅ ឲ្យខ្ញុំធ្វើអីក៏បានដែរ លោកម្ចាស់!",
       emotion: "comedy",
       speed: 1.05,
       pause_after_sec: 0.4,
@@ -118,24 +98,6 @@ export function MovieTab() {
       text: "ហ៊ានប្រមាថតុលាការឬ? ឈប់សើចភ្លាម! ឆ្មាំទាំងឡាយ យកកាំបិតក្បាលឆ្កែមក!",
       emotion: "stern",
       speed: 1.0,
-      pause_after_sec: 0.4,
-    },
-    {
-      id: "l4",
-      character: "ទិនហ្វី",
-      voice: "tinfy",
-      text: "អូយ! កុំអីលោកបង! ខ្ញុំគ្រាន់តែនិយាយលេងសើចសោះហ្នឹង!",
-      emotion: "comedy",
-      speed: 1.08,
-      pause_after_sec: 0.35,
-    },
-    {
-      id: "l5",
-      character: "ប៉ាវចិន",
-      voice: "pao_chin",
-      text: "នៅចំពោះមុខច្បាប់ គ្មានការលេងសើចឡើយ!",
-      emotion: "stern",
-      speed: 0.98,
       pause_after_sec: 0.5,
     },
   ]);
@@ -149,29 +111,32 @@ export function MovieTab() {
   const [copiedSrt, setCopiedSrt] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
-  // Fetch presets on load
+  // Fetch real Cambodian voices directly from API
   React.useEffect(() => {
-    fetch(getApiUrl("/api/movie/presets"))
+    setIsLoadingVoices(true);
+    fetch(getApiUrl("/api/voices"))
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data && data.presets) {
-          setPresets(data.presets);
+        if (data && data.voices) {
+          const loaded: DropdownOption[] = Object.values(data.voices).map((v: any) => ({
+            value: v.id,
+            label: v.label || v.id,
+            sublabel: v.description || undefined,
+          }));
+          setVoiceOptions(loaded);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("Failed to load real voices:", err);
+      })
+      .finally(() => {
+        setIsLoadingVoices(false);
+      });
   }, []);
-
-  const handleApplyPreset = (presetId: string) => {
-    setSelectedPresetId(presetId);
-    const p = presets.find((x) => x.id === presetId);
-    if (!p) return;
-    setSceneTitle(p.title);
-    setScriptText(p.script_text);
-    handleParseScript(p.script_text);
-  };
 
   const handleParseScript = async (rawScript?: string) => {
     const textToParse = rawScript !== undefined ? rawScript : scriptText;
+    if (!textToParse.trim()) return;
     try {
       const res = await fetch(getApiUrl("/api/movie/parse-script"), {
         method: "POST",
@@ -183,7 +148,7 @@ export function MovieTab() {
       if (data.lines && data.lines.length > 0) {
         setLines(
           data.lines.map((l: any, i: number) => ({
-            id: `l_${Date.now()}_${i}`,
+            id: `line_${Date.now()}_${i}`,
             character: l.character,
             voice: l.voice,
             text: l.text,
@@ -192,6 +157,7 @@ export function MovieTab() {
             pause_after_sec: l.pause_after_sec || 0.4,
           }))
         );
+        setScriptMode("lines");
       }
     } catch (err: any) {
       console.error(err);
@@ -202,10 +168,10 @@ export function MovieTab() {
     setLines((prev) => [
       ...prev,
       {
-        id: `l_${Date.now()}`,
+        id: `line_${Date.now()}`,
         character: "តួអង្គ",
-        voice: "male",
-        text: "សូមបញ្ចូលអត្ថបទសន្ទនាភាពយន្ត...",
+        voice: voiceOptions[0]?.value || "male",
+        text: "",
         emotion: "neutral",
         speed: 1.0,
         pause_after_sec: 0.4,
@@ -234,7 +200,11 @@ export function MovieTab() {
       if (scriptMode === "script" && scriptText.trim()) {
         payload.script_text = scriptText.trim();
       } else {
-        payload.lines = lines;
+        const validLines = lines.filter((l) => l.text.trim().length > 0);
+        if (validLines.length === 0) {
+          throw new Error("Please enter dialogue text for at least one character line.");
+        }
+        payload.lines = validLines;
       }
 
       const res = await fetch(getApiUrl("/api/movie/dub"), {
@@ -280,30 +250,31 @@ export function MovieTab() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Hero Banner */}
-      <Card className="border-emerald-500/30 bg-gradient-to-r from-emerald-950/20 via-zinc-900 to-zinc-950">
-        <CardContent className="p-6">
+      {/* Studio Header Card */}
+      <Card className="border-slate-800 bg-[#070c18] shadow-sm">
+        <CardContent className="p-5 md:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400">
-                  <Clapperboard className="mr-1.5 h-3.5 w-3.5" /> 🎬 Cinema & Drama Dubbing Studio
+                <Badge variant="emerald" className="text-[11px] font-medium">
+                  <Clapperboard className="mr-1 h-3.5 w-3.5" /> Movie &amp; Drama Studio
                 </Badge>
-                <Badge variant="secondary" className="bg-zinc-800 text-zinc-300">
-                  48kHz Studio Master
+                <Badge variant="outline" className="border-slate-800 text-slate-400 text-[11px]">
+                  48kHz Master Output
                 </Badge>
               </div>
-              <h2 className="text-xl font-bold tracking-tight text-white md:text-2xl">
-                បញ្ចាំង និងបញ្ចូលសំឡេងភាពយន្តខ្មែរ (Multi-Character Movie Dubbing)
+              <h2 className="text-xl font-bold tracking-tight text-white md:text-2xl font-sans">
+                បញ្ចូលសំឡេងភាពយន្ត (Multi-Character Movie Dubbing)
               </h2>
-              <p className="text-sm text-zinc-400">
-                បញ្ចូលសំឡេងតួអង្គច្រើនក្នុងឈុតតែមួយ (ទិនហ្វី, ប៉ាវចិន, អ្នកនិទាន) ជាមួយចង្វាក់ភាពយន្ត និង Export Subtitle SRT ស្របគ្នាដោយស្វ័យប្រវត្តិ។
+              <p className="text-xs md:text-sm text-slate-400 max-w-2xl">
+                បញ្ចូលសំឡេងតួអង្គច្រើនក្នុងឈុតតែមួយ ផ្គុំជាបទសំឡេង Master 48kHz ដោយស្វ័យប្រវត្តិ រួមទាំងបង្កើត Subtitle SRT ស្របតាមពេលវេលានិយាយពិតប្រាកដ។
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-xs">
+
+            <div className="flex items-center gap-3 self-start md:self-auto">
+              <div className="flex items-center gap-2.5 rounded-xl border border-slate-800 bg-[#090f1d] px-3.5 py-2">
                 <Switch checked={useLora} onCheckedChange={setUseLora} id="use-lora-movie" />
-                <label htmlFor="use-lora-movie" className="cursor-pointer font-medium text-zinc-300">
+                <label htmlFor="use-lora-movie" className="cursor-pointer text-xs font-medium text-slate-200 select-none">
                   Use Fine-Tuned LoRA
                 </label>
               </div>
@@ -312,153 +283,123 @@ export function MovieTab() {
         </CardContent>
       </Card>
 
-      {/* Preset Scenes Picker */}
-      <Card className="border-zinc-800 bg-zinc-900/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-emerald-400" />
-            ជ្រើសរើសឈុតភាពយន្តគំរូ (Cinema Presets)
-          </CardTitle>
-          <CardDescription>
-            ចុចមួយឃ្លីកដើម្បីទាញយកអត្ថបទសន្ទនារឿងកំប្លែង ប៉ាវចិន ឬភាពយន្តបុរាណ
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {(presets.length > 0
-              ? presets
-              : [
-                  {
-                    id: "tinfy_vs_pao_chin",
-                    title: "🎭 ទិនហ្វី ប៉ះ ប៉ាវចិន",
-                    genre: "Comedy / Drama",
-                    description: "ឈុតកំប្លែងទិនហ្វីប៉ះលោកប៉ាវចិន",
-                    script_text: "",
-                  },
-                  {
-                    id: "ancient_warrior_battle",
-                    title: "⚔️ សង្គ្រាមមេទ័ពបុរាណ",
-                    genre: "Action / War",
-                    description: "ឈុតសមរភូមិកងទ័ពបុរាណ",
-                    script_text: "",
-                  },
-                  {
-                    id: "cinematic_trailer",
-                    title: "🎬 ស្រមោលរាត្រី Trailer",
-                    genre: "Thriller / Mystery",
-                    description: "ឈុតខ្លីភាពយន្តភ័យរន្ធត់",
-                    script_text: "",
-                  },
-                ]
-            ).map((p) => (
-              <button
-                key={p.id}
-                onClick={() => handleApplyPreset(p.id)}
-                className={`flex flex-col text-left p-3.5 rounded-xl border transition-all ${
-                  selectedPresetId === p.id
-                    ? "border-emerald-500 bg-emerald-500/10 text-white ring-1 ring-emerald-500/50"
-                    : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-700 text-zinc-300"
-                }`}
-              >
-                <span className="font-semibold text-sm text-zinc-100">{p.title}</span>
-                <span className="text-xs text-emerald-400/90 font-mono mt-0.5">{p.genre}</span>
-                <span className="text-xs text-zinc-400 mt-1 line-clamp-1">{p.description}</span>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Script & Dialogue Studio */}
+      {/* Main Workspace Layout */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left Column: Script / Line Editor */}
+        {/* Left Column: Script / Dialogue Line Builder (7 cols) */}
         <div className="space-y-4 lg:col-span-7">
-          <Card className="border-zinc-800 bg-zinc-900/50">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base text-zinc-200 flex items-center gap-2">
-                  <Film className="h-4 w-4 text-emerald-400" />
-                  អត្ថបទសន្ទនាភាពយន្ត (Movie Script)
-                </CardTitle>
-                <CardDescription>
-                  សរសេរ ឬកែសម្រួលពាក្យសន្ទនារបស់តួអង្គនីមួយៗ
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950 p-1">
-                <button
-                  onClick={() => setScriptMode("script")}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-                    scriptMode === "script" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  Raw Script Text
-                </button>
-                <button
-                  onClick={() => {
-                    handleParseScript();
-                    setScriptMode("lines");
-                  }}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-                    scriptMode === "lines" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  Visual Dialogue Lines
-                </button>
+          <Card className="border-slate-800 bg-[#070c18]">
+            <CardHeader className="pb-3 border-b border-slate-800/80">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="space-y-1">
+                  <CardTitle className="text-base text-slate-100 flex items-center gap-2">
+                    <Film className="h-4 w-4 text-emerald-400" />
+                    តារាងសន្ទនាភាពយន្ត (Dialogue Lines)
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-400">
+                    កំណត់តួអង្គ សំឡេង អារម្មណ៍ និងសម្ដីសន្ទនានីមួយៗ
+                  </CardDescription>
+                </div>
+
+                <div className="flex items-center gap-1.5 self-start sm:self-auto rounded-lg border border-slate-800 bg-[#0a101f] p-1">
+                  <button
+                    type="button"
+                    onClick={() => setScriptMode("lines")}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                      scriptMode === "lines"
+                        ? "bg-slate-800 text-white shadow-sm"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Dialogue Lines
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScriptMode("script")}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                      scriptMode === "script"
+                        ? "bg-slate-800 text-white shadow-sm"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Raw Script Text
+                  </button>
+                </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+
+            <CardContent className="pt-4 space-y-4">
+              {/* Scene Title Input */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-300">ចំណងជើងឈុត (Scene Title)</label>
+                <input
+                  type="text"
+                  value={sceneTitle}
+                  onChange={(e) => setSceneTitle(e.target.value)}
+                  className="w-full rounded-xl border border-slate-800 bg-[#090f1d] px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                  placeholder="ឧ. ឈុតទីមួយ៖ ជួបគ្នានៅសាលាក្តី..."
+                />
+              </div>
+
               {scriptMode === "script" ? (
+                /* Raw Script Editor */
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs text-zinc-400">
-                    <span>ទម្រង់៖ <code className="text-emerald-400">[ឈ្មោះតួ (emotion)]: សម្ដីសន្ទនា</code></span>
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>
+                      ទម្រង់សរសេរ៖ <code className="text-emerald-400 font-mono">[ឈ្មោះតួ (emotion)]: សម្ដីសន្ទនា</code>
+                    </span>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => handleParseScript()}
-                      className="h-7 text-xs text-emerald-400 hover:text-emerald-300"
+                      className="h-7 text-xs text-emerald-400 hover:text-emerald-300 gap-1.5"
                     >
-                      <Wand2 className="mr-1.5 h-3.5 w-3.5" />
-                      Auto-Detect Characters
+                      <Wand2 className="h-3.5 w-3.5" />
+                      Convert to Dialogue Cards
                     </Button>
                   </div>
                   <textarea
                     value={scriptText}
                     onChange={(e) => setScriptText(e.target.value)}
-                    rows={10}
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 p-4 font-mono text-sm leading-relaxed text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                    placeholder="[អ្នកនិទាន (cinematic)]: ខ្យល់បក់ត្រជាក់...\n[ទិនហ្វី (comedy)]: ឥឡូវឆាប់ដោះលែងគេទៅ!"
+                    rows={12}
+                    className="w-full rounded-xl border border-slate-800 bg-[#090f1d] p-4 font-mono text-sm leading-relaxed text-slate-100 placeholder-slate-600 focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/40 resize-y"
+                    placeholder="[អ្នកនិទាន (cinematic)]: ខ្យល់បក់ត្រជាក់...\n[ទិនហ្វី (comedy)]: ឥឡូវឆាប់ដោះលែងគេទៅ!\n[ប៉ាវចិន (stern)]: ឈប់សើចភ្លាម!"
                   />
                 </div>
               ) : (
+                /* Visual Dialogue Cards */
                 <div className="space-y-3">
                   {lines.map((line, idx) => (
                     <div
                       key={line.id}
-                      className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3.5 space-y-2.5 transition-all hover:border-zinc-700"
+                      className="rounded-xl border border-slate-800 bg-[#090f1d] p-3.5 space-y-3 transition-colors hover:border-slate-700"
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-900 pb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-zinc-300">
+                      {/* Top Row: Line Number + Character Name + Voice + Emotion + Delete */}
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-12 sm:items-center">
+                        <div className="flex items-center gap-2 sm:col-span-4">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[11px] font-bold text-slate-300">
                             {idx + 1}
                           </span>
                           <input
                             type="text"
                             value={line.character}
                             onChange={(e) => handleUpdateLine(line.id, { character: e.target.value })}
-                            className="w-28 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-semibold text-white focus:border-emerald-500 focus:outline-none"
+                            className="w-full rounded-lg border border-slate-800 bg-[#070c18] px-2.5 py-1.5 text-xs font-semibold text-white focus:border-emerald-500/60 focus:outline-none"
                             placeholder="ឈ្មោះតួអង្គ"
                           />
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-36">
-                            <CustomDropdown
-                              value={line.voice}
-                              options={VOICE_OPTIONS}
-                              onChange={(val) => handleUpdateLine(line.id, { voice: val })}
-                              placeholder="Voice"
-                            />
-                          </div>
-                          <div className="w-36">
+
+                        <div className="sm:col-span-4">
+                          <CustomDropdown
+                            value={line.voice}
+                            options={voiceOptions}
+                            onChange={(val) => handleUpdateLine(line.id, { voice: val })}
+                            placeholder={isLoadingVoices ? "Loading voices..." : "Select Voice"}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2 sm:col-span-4">
+                          <div className="flex-1 min-w-0">
                             <CustomDropdown
                               value={line.emotion}
                               options={EMOTION_OPTIONS}
@@ -466,36 +407,67 @@ export function MovieTab() {
                               placeholder="Emotion"
                             />
                           </div>
-                          <button
-                            onClick={() => handleRemoveLine(line.id)}
-                            className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
-                            title="Remove line"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {lines.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveLine(line.id)}
+                              className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-950/20 transition-colors"
+                              title="Delete line"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
+
+                      {/* Dialogue Khmer Text */}
                       <textarea
                         value={line.text}
                         onChange={(e) => handleUpdateLine(line.id, { text: e.target.value })}
                         rows={2}
-                        className="w-full rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 focus:border-emerald-500 focus:outline-none"
-                        placeholder="សម្ដីសន្ទនាជាភាសាខ្មែរ..."
+                        className="w-full rounded-lg border border-slate-800 bg-[#070c18] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:border-emerald-500/60 focus:outline-none font-sans leading-relaxed resize-y"
+                        placeholder="វាយបញ្ចូលសម្ដីសន្ទនាជាភាសាខ្មែរ..."
                       />
-                      <div className="flex items-center justify-between text-xs text-zinc-400 pt-1">
-                        <div className="flex items-center gap-3">
-                          <span>ល្បឿន: {line.speed.toFixed(2)}x</span>
-                          <span className="text-zinc-600">|</span>
-                          <span>គម្លាតដកដង្ហើម: {line.pause_after_sec.toFixed(2)}s</span>
+
+                      {/* Sliders: Speech Speed & Pause */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-800/60">
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px] text-slate-400">
+                            <span>ល្បឿននិយាយ (Speed)</span>
+                            <span className="font-mono text-emerald-400">{line.speed.toFixed(2)}x</span>
+                          </div>
+                          <Slider
+                            value={[line.speed]}
+                            min={0.8}
+                            max={1.25}
+                            step={0.02}
+                            onValueChange={([val]) => handleUpdateLine(line.id, { speed: val })}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px] text-slate-400">
+                            <span>គម្លាតដកដង្ហើម (Pause After)</span>
+                            <span className="font-mono text-cyan-400">{line.pause_after_sec.toFixed(2)}s</span>
+                          </div>
+                          <Slider
+                            value={[line.pause_after_sec]}
+                            min={0.1}
+                            max={1.5}
+                            step={0.05}
+                            onValueChange={([val]) => handleUpdateLine(line.id, { pause_after_sec: val })}
+                          />
                         </div>
                       </div>
                     </div>
                   ))}
+
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={handleAddLine}
-                    className="w-full border-dashed border-zinc-700 bg-transparent text-zinc-300 hover:border-emerald-500 hover:text-emerald-400"
+                    className="w-full border-dashed border-slate-800 bg-transparent text-slate-300 hover:border-emerald-500/60 hover:text-emerald-400 py-4"
                   >
                     <Plus className="mr-2 h-4 w-4" /> បន្ថែមប្រយោគសន្ទនា (Add Dialogue Line)
                   </Button>
@@ -503,24 +475,26 @@ export function MovieTab() {
               )}
 
               {errorMessage && (
-                <div className="rounded-lg border border-red-500/30 bg-red-950/30 p-3 text-xs text-red-400">
+                <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-3 text-xs text-rose-400">
                   {errorMessage}
                 </div>
               )}
 
+              {/* Action Button */}
               <Button
+                type="button"
                 onClick={handleDubScene}
                 disabled={isDubbing}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-6 text-base shadow-lg shadow-emerald-950/50"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-6 text-base shadow-md shadow-emerald-950/40 gap-2 cursor-pointer"
               >
                 {isDubbing ? (
                   <>
-                    <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
+                    <RefreshCw className="h-5 w-5 animate-spin" />
                     កំពុងសំយោគបញ្ចូលសំឡេងភាពយន្ត (Dubbing Movie Scene)...
                   </>
                 ) : (
                   <>
-                    <Clapperboard className="mr-2 h-5 w-5" />
+                    <Clapperboard className="h-5 w-5" />
                     🎬 ចាប់ផ្ដើមបញ្ចូលសំឡេងភាពយន្ត (Dub Movie Scene)
                   </>
                 )}
@@ -529,51 +503,50 @@ export function MovieTab() {
           </Card>
         </div>
 
-        {/* Right Column: Master Scene Output & Subtitles */}
+        {/* Right Column: Master Output, SRT Subtitles, Timeline (5 cols) */}
         <div className="space-y-4 lg:col-span-5">
-          {/* Master Scene Player */}
-          <Card className="border-zinc-800 bg-zinc-900/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base text-zinc-200 flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Play className="h-4 w-4 text-emerald-400" />
-                  សំឡេងភាពយន្តពេញលេញ (Master Scene Track)
-                </span>
+          {/* Master Scene Player Card */}
+          <Card className="border-slate-800 bg-[#070c18]">
+            <CardHeader className="pb-3 border-b border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base text-slate-100 flex items-center gap-2">
+                  <AudioWaveform className="h-4 w-4 text-emerald-400" />
+                  សំឡេងភាពយន្តពេញលេញ (Master Track)
+                </CardTitle>
                 {totalDuration > 0 && (
-                  <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 font-mono text-xs">
+                  <Badge variant="emerald" className="font-mono text-xs py-0">
                     {formatHumanDuration(totalDuration)}
                   </Badge>
                 )}
-              </CardTitle>
-              <CardDescription>
-                សំឡេង 48kHz Master ដែលបានផ្គុំគ្រប់តួអង្គទាំងអស់ជាមួយចង្វាក់ភាពយន្ត
+              </div>
+              <CardDescription className="text-xs text-slate-400">
+                សំឡេង 48kHz Master ដែលបានផ្គុំគ្រប់តួអង្គរួចរាល់
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+
+            <CardContent className="pt-4">
               {masterAudioUrl ? (
                 <div className="space-y-4">
                   <WaveformPlayer
                     audioUrl={getApiUrl(masterAudioUrl)}
                     title={sceneTitle}
-                    subtitle={`48kHz Master • ${resultLines.length} lines`}
+                    subtitle={`48kHz Master Output • ${resultLines.length} Dialogue Lines`}
                   />
-                  <div className="flex gap-2">
-                    <a
-                      href={getApiUrl(masterAudioUrl)}
-                      download={`${sceneTitle.replace(/[^\w\u1780-\u17FF]/g, "_") || "movie_scene"}.wav`}
-                      className="flex-1"
-                    >
-                      <Button variant="outline" size="sm" className="w-full border-zinc-700 hover:bg-zinc-800">
-                        <Download className="mr-2 h-4 w-4" /> Download Scene Audio (WAV)
-                      </Button>
-                    </a>
-                  </div>
+                  <a
+                    href={getApiUrl(masterAudioUrl)}
+                    download={`${sceneTitle.replace(/[^\w\u1780-\u17FF]/g, "_") || "movie_scene"}.wav`}
+                    className="block"
+                  >
+                    <Button variant="outline" size="sm" className="w-full border-slate-800 hover:bg-slate-800 text-slate-200">
+                      <Download className="mr-2 h-4 w-4" /> Download Scene Audio (WAV)
+                    </Button>
+                  </a>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-950/40 p-8 text-center text-zinc-500">
-                  <Clapperboard className="h-10 w-10 text-zinc-700 mb-2" />
-                  <p className="text-sm font-medium text-zinc-400">មិនទាន់មានសំឡេងភាពយន្តនៅឡើយទេ</p>
-                  <p className="text-xs text-zinc-600 mt-1">
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 bg-[#090f1d] p-8 text-center text-slate-500">
+                  <Clapperboard className="h-10 w-10 text-slate-700 mb-2" />
+                  <p className="text-sm font-medium text-slate-300">មិនទាន់មានសំឡេងភាពយន្តនៅឡើយទេ</p>
+                  <p className="text-xs text-slate-500 mt-1">
                     ចុចប៊ូតុង "🎬 ចាប់ផ្ដើមបញ្ចូលសំឡេងភាពយន្ត" ដើម្បីបង្កើត Master Audio
                   </p>
                 </div>
@@ -581,69 +554,72 @@ export function MovieTab() {
             </CardContent>
           </Card>
 
-          {/* Subtitles (SRT) & Timeline */}
-          <Card className="border-zinc-800 bg-zinc-900/50">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base text-zinc-200 flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-emerald-400" />
-                  ចំណងជើងរងភាពយន្ត (SRT Subtitles)
-                </CardTitle>
-                <CardDescription>
-                  Exact timecodes ស្របតាមសំឡេង សម្រាប់ទម្លាក់ចូល Premiere, CapCut ឬ DaVinci
-                </CardDescription>
-              </div>
-              {srtSubtitles && (
-                <div className="flex items-center gap-1.5">
-                  <Button variant="ghost" size="sm" onClick={handleCopySrt} className="h-8 px-2 text-xs">
-                    {copiedSrt ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleDownloadSrt} className="h-8 px-2 text-xs border-zinc-700">
-                    <Download className="h-3.5 w-3.5" />
-                  </Button>
+          {/* SRT Subtitle Card */}
+          <Card className="border-slate-800 bg-[#070c18]">
+            <CardHeader className="pb-3 border-b border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base text-slate-100 flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-emerald-400" />
+                    ចំណងជើងរង (SRT Subtitles)
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-400">
+                    Timecodes ស្របតាមសំឡេង សម្រាប់ Premiere, CapCut ឬ DaVinci
+                  </CardDescription>
                 </div>
-              )}
+                {srtSubtitles && (
+                  <div className="flex items-center gap-1.5">
+                    <Button variant="ghost" size="sm" onClick={handleCopySrt} className="h-8 px-2 text-xs text-slate-300">
+                      {copiedSrt ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleDownloadSrt} className="h-8 px-2 text-xs border-slate-800 text-slate-300">
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
-            <CardContent>
+
+            <CardContent className="pt-4">
               {srtSubtitles ? (
-                <pre className="max-h-60 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950 p-3.5 font-mono text-xs leading-relaxed text-zinc-300">
+                <pre className="max-h-56 overflow-y-auto rounded-xl border border-slate-800 bg-[#090f1d] p-3.5 font-mono text-xs leading-relaxed text-slate-300">
                   {srtSubtitles}
                 </pre>
               ) : (
-                <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950/30 p-6 text-center text-xs text-zinc-600">
+                <div className="rounded-xl border border-dashed border-slate-800 bg-[#090f1d] p-6 text-center text-xs text-slate-600">
                   Subtitle SRT នឹងត្រូវបានបង្កើតដោយស្វ័យប្រវត្តិកំឡុងពេល Dubbing
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Dialogue Lines Timeline Audition */}
+          {/* Dialogue Lines Audition Table */}
           {resultLines.length > 0 && (
-            <Card className="border-zinc-800 bg-zinc-900/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
+            <Card className="border-slate-800 bg-[#070c18]">
+              <CardHeader className="pb-3 border-b border-slate-800/80">
+                <CardTitle className="text-sm font-semibold text-slate-200 flex items-center gap-2">
                   <Layers className="h-4 w-4 text-emerald-400" />
                   បន្ទាត់សន្ទនាតាមលំដាប់ (Timeline Lines)
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+              <CardContent className="pt-4">
+                <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
                   {resultLines.map((item) => (
                     <div
                       key={item.line_index}
-                      className="flex items-center justify-between rounded-lg border border-zinc-800/80 bg-zinc-950/80 p-2.5 text-xs"
+                      className="flex items-center justify-between rounded-lg border border-slate-800 bg-[#090f1d] p-2.5 text-xs"
                     >
                       <div className="space-y-0.5 overflow-hidden pr-2">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-emerald-400">{item.character}</span>
-                          <span className="font-mono text-[10px] text-zinc-500">
+                          <span className="font-mono text-[10px] text-slate-500">
                             {item.start_time.toFixed(1)}s - {item.end_time.toFixed(1)}s
                           </span>
-                          <Badge variant="outline" className="border-zinc-800 text-[10px] py-0 text-zinc-400">
+                          <Badge variant="outline" className="border-slate-800 text-[10px] py-0 text-slate-400">
                             {item.emotion}
                           </Badge>
                         </div>
-                        <p className="truncate text-zinc-300">{item.text}</p>
+                        <p className="truncate text-slate-300">{item.text}</p>
                       </div>
                       <audio controls src={getApiUrl(item.audio_url)} className="h-7 w-28" />
                     </div>

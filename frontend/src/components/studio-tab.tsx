@@ -489,34 +489,26 @@ export function StudioTab() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {/* Preset Pills */}
-          <div className="flex flex-wrap gap-1.5 pb-1">
-            {Object.entries(KHMER_PRESETS).map(([k, p]) => (
+          <div className="flex items-center justify-between text-xs text-slate-400 pb-1">
+            <span>បញ្ចូលអត្ថបទសន្ទនា ឬអត្ថបទភាពយន្តជាភាសាខ្មែរ</span>
+            {text && (
               <button
-                key={k}
                 type="button"
-                onClick={() => handleApplyPreset(k as keyof typeof KHMER_PRESETS)}
-                className="px-2.5 py-1 text-xs rounded-md bg-[#0a101d] border border-slate-800 hover:border-slate-700 hover:bg-slate-800/60 text-slate-300 hover:text-white transition-colors cursor-pointer select-none"
+                onClick={() => setText("")}
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
               >
-                {p.label}
+                Clear text
               </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setText("")}
-              className="px-2.5 py-1 text-xs rounded-md bg-transparent border border-slate-800 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
-            >
-              Clear
-            </button>
+            )}
           </div>
 
           <textarea
             ref={textareaRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            rows={3}
+            rows={4}
             placeholder="វាយបញ្ចូលអត្ថបទភាសាខ្មែរដែលអ្នកចង់បង្កើតសំឡេង..."
-            className="w-full min-h-[500px] max-h-[340px] rounded-xl border border-slate-800 bg-[#090e1b] px-4 py-3 text-base md:text-[16px] text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-[border-color,box-shadow] font-sans leading-[1.8] resize-y overflow-y-auto"
+            className="w-full min-h-[140px] max-h-[360px] rounded-xl border border-slate-800 bg-[#090e1b] px-4 py-3 text-base md:text-[16px] text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-[border-color,box-shadow] font-sans leading-[1.8] resize-y overflow-y-auto"
           />
 
           <div className="flex items-center gap-2">
